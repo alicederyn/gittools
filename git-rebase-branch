@@ -1,0 +1,227 @@
+#!/usr/bin/python
+"""Usage:
+    git-rebase-branch [--start] [options] [<branch>]
+    git-rebase-branch --create <branch>
+    git-rebase-branch --commit
+    git-rebase-branch --reset <branch>
+    git-rebase-branch --edit-script <editor> <template> <script>
+    git-rebase-branch --merge <branch> ...
+
+Options:
+    --exec=<cmd>     Append "exec <cmd>" after each line creating a commit in the final history.
+    --onto=<branch>  Starting point at which to create the new commits; defaults to the upstream
+                     branch. The upstream branch will be updated to match the new value when the
+                     rebase completes.
+    -n, --dry-run    Don't execute anything; just dump the intermediate commands
+"""
+import sh, os, tempfile
+from collections import namedtuple
+from docopt import docopt
+from itertools import takewhile
+from shutil import copyfile
+from utils import revparse, commitlog, getBranches, getUpstreamBranch, hierarchy, Branch
+
+rebase_branch = "git rebase-branch"
+
+def route(to, tree):
+  stack = [to]
+  while tree[stack[-1]] in tree:
+    stack.append(tree[stack[-1]])
+  stack.reverse()
+  return stack
+
+def getRebaseDir():
+  gitdir = revparse(git_dir=True)
+  rebaseDir = os.path.join(gitdir, "rebase-merge")
+  return rebaseDir
+
+def getBranchesFile():
+  rebaseDir = getRebaseDir()
+  rebasing = os.path.isdir(rebaseDir)
+  assert rebasing
+  branchesFile = os.path.join(rebaseDir, "branch-snapshots")
+  return branchesFile
+
+def lastParentCommit(branch):
+  commits = (commit.hash for commit in commitlog(branch))
+  for hash in commits:
+    if hash in Branch.REV_MAP and Branch.REV_MAP[hash].name != branch:
+        return hash
+  return None
+
+def getPicks(branch, parent):
+  return reversed(Branch(branch).unpushedCommitLog)
+
+def getRebaseArgs(endBranch, parents, children, execCmd, onto):
+  todo = []
+  for leaf in sorted(branch for branch, childs in children.iteritems() if not childs):
+    todo.extend(route(to=leaf, tree=parents))
+  rootBranch = parents[todo[0]]
+  if rootBranch:
+    rootCommit = lastParentCommit(endBranch)
+  else:
+    rootCommit = None
+
+  args = ["git", "rebase", "-i"]
+  if rootCommit is not None:
+    args.append(revparse("--short", rootCommit))
+  else:
+    args.append("--root")
+  args.append(endBranch)
+
+  scriptLines = []
+  last = rootBranch
+  done = set()
+  while todo:
+    branch = todo.pop(0)
+    if branch not in done:
+      done.add(branch)
+      scriptLines.append("# Branch %s" % (branch,))
+      if parents[branch] not in parents:
+        scriptLines.append("exec %s --reset %s" % (rebase_branch, onto or rootBranch or ""))
+      elif parents[branch] != last:
+        scriptLines.append("exec %s --reset %s" % (rebase_branch, parents[branch]))
+      for pick in reversed(Branch(branch).unpushedCommits):
+        scriptLines.append("pick %s %s" % (revparse("--short", pick.hash), pick.subject))
+        if execCmd is not None:
+          scriptLines.append("exec " + execCmd)
+      scriptLines.append("exec %s --create %s" % (rebase_branch, branch))
+      scriptLines.append("")
+      last = branch
+  scriptLines.append("exec %s --commit" % (rebase_branch,))
+
+  return (args, "\n".join(scriptLines) + "\n")
+
+def executeRebase(gitargs, script):
+  """Executes git rebase; does not return unless there is an error starting git."""
+  with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+    f.write(script)
+  gitEditor = str(sh.git.var("GIT_EDITOR", _tty_out=False)).strip()
+  env = dict(os.environ)
+  env["GIT_EDITOR"] = "%s --edit-script %s %s" % (rebase_branch, gitEditor, f.name)
+  os.execvpe("git", gitargs, env)
+
+def getUncommittedBranches():
+  commits = {}
+  branchesFile = getBranchesFile()
+  if os.path.exists(branchesFile):
+    with open(branchesFile, "r") as f:
+      for line in f:
+        commit, b = line.strip().split(" ", 1)
+        if commit != '/':
+          commits[b] = commit
+  return commits
+
+def startAction(arguments):
+  rebaseDir = getRebaseDir()
+  rebasing = os.path.isdir(rebaseDir)
+  assert not rebasing
+  try:
+    branch = arguments["<branch>"][0]
+  except IndexError:
+    branch = revparse("--abbrev-ref", "HEAD")
+  onto = arguments["--onto"]
+  branches = getBranches()
+  assert onto is None or onto == "" or onto in branches
+  assert onto != ""  # Buggy
+  parents, children = hierarchy(branch, branches=branches)
+  execCmd = arguments["--exec"]
+  gitargs, script = getRebaseArgs(branch, parents, children, execCmd, onto)
+  if arguments["--dry-run"]:
+    print " ".join(gitargs)
+    print
+    print script
+  else:
+    executeRebase(gitargs, script)
+
+def createAction(arguments):
+  branchesFile = getBranchesFile()
+  branch = arguments["<branch>"][0]
+  currentCommit = revparse("HEAD")
+  with open(branchesFile, "a") as f:
+    f.write("%s %s\n" % (currentCommit, branch))
+
+def commitAction(arguments):
+  branchesFile = getBranchesFile()
+  with open(os.path.join(getRebaseDir(), "head-name"), "r") as f:
+    endBranch = revparse("--abbrev-ref", f.readline().strip())
+  upstream = getUpstreamBranch(endBranch)
+  endCommit = None
+  with open(branchesFile, "r") as f:
+    for line in f:
+      commit, branch = line.strip().split(" ", 1)
+      if branch != '/' and commit != '/':
+        if branch == endBranch:
+          endCommit = commit
+        else:
+          sh.git.branch(branch, commit, f=True)
+        if upstream:
+          if upstream == "/":
+            sh.git.branch("--unset-upstream", branch)
+          else:
+            sh.git.branch("-u", upstream, branch)
+        if branch != endBranch:
+          print "Updated refs/heads/%s" % (branch)
+      upstream = branch
+  if endCommit:
+    sh.git.reset("--hard", endCommit)
+
+def resetAction(arguments):
+  branch = arguments['<branch>'][0]
+  commits = getUncommittedBranches()
+  branchesFile = getBranchesFile()
+  with open(branchesFile, "a") as f:
+    f.write("/ %s\n" % (branch or "/"))
+  assert branch is None or branch in getBranches() or branch in commits
+  assert branch is not None  # Buggy
+  if branch is None:
+    sh.git("update-ref", "-d", "HEAD")
+    sh.git.reset("--hard")
+    from time import sleep
+    sleep(2)
+  elif branch in commits:
+    sh.git.checkout(commits[branch])
+  else:
+    sh.git.reset("--hard", branch)
+
+def mergeAction(arguments):
+  print arguments
+  branches = arguments['<branch>']
+  commits = getUncommittedBranches()
+  mergeArgs = []
+  for branch in branches:
+    assert branch in getBranches() or branch in commits
+    if branch in commits:
+      mergeArgs.append(commits[branch])
+    else:
+      mergeArgs.append(branch)
+  sh.git.merge("--no-edit", "-m", "Merge in %s" % ", ".join(branches), *mergeArgs)
+
+def editScriptAction(arguments):
+  gitEditor = arguments["<editor>"]
+  template = arguments["<template>"]
+  script = arguments["<script>"]
+  if os.path.exists(template):
+    with open(template, "r") as fin:
+      with open(script, "w") as fout:
+        for line in fin:
+          fout.write(line)
+    os.unlink(template)
+  os.execlp(gitEditor, gitEditor, script)
+
+if __name__ == '__main__':
+  import locale
+  assert locale.getpreferredencoding() == 'UTF-8' # Fails if we us /usr/grte/v3/bin/python2.7
+  arguments = docopt(__doc__)
+  if arguments['--create']:
+    createAction(arguments)
+  elif arguments['--commit']:
+    commitAction(arguments)
+  elif arguments['--edit-script']:
+    editScriptAction(arguments)
+  elif arguments['--reset']:
+    resetAction(arguments)
+  elif arguments['--merge']:
+    mergeAction(arguments)
+  else:
+    startAction(arguments)
