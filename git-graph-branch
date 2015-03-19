@@ -13,6 +13,7 @@ Options:
                             [default: 100].
     --max-update-freq=<ms>  Will not update more frequently than this [default: 500].
     --color                 Colorizes branches
+    --profile               Profiles the app
 """
 # Observed bugs:
 #  1) git branch -f BRANCH commit  -- not noticed by --watch
@@ -303,6 +304,9 @@ if __name__ == '__main__':
           color = arguments['--color'])
     except KeyboardInterrupt:
       pass
+  elif arguments['--profile']:
+    import cProfile
+    cProfile.run('printGraph(clearScreen=False, color = %s)' % arguments['--color'])
   else:
     printGraph(clearScreen=False, color = arguments['--color'])
 
