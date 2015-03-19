@@ -8,6 +8,7 @@ Options:
     --wait-to-merge=<ms>    Waits for this long for the git repo to settle after a change
                             [default: 100].
     --max-update-freq=<ms>  Will not update more frequently than this [default: 500].
+    --color                 Colorizes branches
 """
 # Observed bugs:
 #  1) git branch -f BRANCH commit  -- not noticed by --watch
@@ -41,7 +42,7 @@ def pickNext(awaitingParents, todo, done):
   return youngestBranchLeaf(candidate)[1]
 
 def getColour(branch, colours, colourseq):
-  if branch is None:
+  if branch is None or colourseq is None:
     return 0
   if branch not in colours:
     if len(branch.children) == 0:
@@ -59,7 +60,7 @@ def setColour(colour):
   if colour:
     sys.stdout.write('\x1b[%s' % colour)
 
-def printGraph(clearScreen = False):
+def printGraph(clearScreen = False, color = False):
   branches = getBranches()
   try:
     currentBranch = Branch(revparse("--abbrev-ref", "HEAD"))
@@ -72,7 +73,10 @@ def printGraph(clearScreen = False):
   awaitingParents = []
   firstChilds = []
   colours = {}
-  colourseq = cycle(('38;5;%dm' % i for i in alternatingColourIds()))
+  if color:
+    colourseq = cycle(('38;5;%dm' % i for i in alternatingColourIds()))
+  else:
+    colourseq = None
  
   if clearScreen:
     sys.stdout.write('\x1b[0;0H')
@@ -210,7 +214,7 @@ class Watcher(watchdog.events.FileSystemEventHandler):
       time.sleep(1)
     self.eventReceived = False
 
-def watchForChanges(waitToMerge, maxUpdateFreq):
+def watchForChanges(waitToMerge, maxUpdateFreq, color):
   gitdir = revparse(git_dir=True)
   logsdir = os.path.join(gitdir, 'logs')
   config = os.path.realpath(os.path.join(gitdir, 'config'))
@@ -219,7 +223,7 @@ def watchForChanges(waitToMerge, maxUpdateFreq):
       nextEarliestUpdate = datetime.utcnow() + maxUpdateFreq - waitToMerge
       Branch.clear_cache()
       try:
-        printGraph(clearScreen=True)
+        printGraph(clearScreen = True, color = color)
       except Exception:
         sys.stdout.write('\n')
         sys.stdout.flush()
@@ -235,9 +239,10 @@ if __name__ == '__main__':
     try:
       watchForChanges(
           waitToMerge = timedelta(milliseconds = int(arguments['--wait-to-merge'])),
-          maxUpdateFreq = timedelta(milliseconds = int(arguments['--max-update-freq'])))
+          maxUpdateFreq = timedelta(milliseconds = int(arguments['--max-update-freq'])),
+          color = arguments['--color'])
     except KeyboardInterrupt:
       pass
   else:
-    printGraph(clearScreen=False)
+    printGraph(clearScreen=False, color = arguments['--color'])
 
