@@ -2,19 +2,16 @@ import re, sh
 from collections import defaultdict, namedtuple
 from datetime import datetime
 
+__all__ = ['revparse', 'getUpstreamBranch', 'getBranches', 'Branch', 'Commit']
+
+def first(collection, default=None):
+  return next(iter(collection), default)
+
 def revparse(*args, **kwargs):
   try:
     return str(sh.git("rev-parse", *args, **kwargs)).strip()
   except sh.ErrorReturnCode, e:
     raise ValueError(e)
-
-Commit = namedtuple("Commit", "hash subject")
-def commitlog(branch):
-  if not branch:
-    return []
-  log = sh.git.log("--format=%H %s", branch, _iter=True, _tty_out=False)
-  return [Commit(h, s) for h, s in
-          (l.split(" ", 1) for l in log.splitlines())]
 
 def getUpstreamBranch(branch):
   try:
@@ -24,32 +21,6 @@ def getUpstreamBranch(branch):
 
 def getBranches():
   return revparse("--abbrev-ref", "--branches").splitlines()
-
-def hierarchy(top=None, branches=None):
-  """Returns the 'upstream' hierarchy of all branches, plus the reverse
-  'downstream' structure, excluding anything not downstream of 'top' if
-  given. Does not currently handle merges.
-  
-  """
-  branches = getBranches() if branches is None else branches
-  parents = { branch : getUpstreamBranch(branch) for branch in branches }
-  children = defaultdict(list)
-  for branch in branches:
-    children[parents[branch]].append(branch)
-  assert top in children
-  if top:
-    tokeep = set()
-    todo = [top]
-    while todo:
-      branch = todo.pop()
-      if branch not in tokeep:
-        tokeep.add(branch)
-        todo.extend(children[branch])
-  else:
-    tokeep = children
-  parents = { k : v for k, v in parents.iteritems() if k in tokeep }
-  children = { k : tuple(children[k]) for k in tokeep }
-  return parents, children
 
 class lazy(object):
   def __init__(self, func):
@@ -76,6 +47,8 @@ class lazy(object):
   def clear(self):
     if 'result' in vars(self):
       del vars(self)['result']
+
+Commit = namedtuple("Commit", "hash subject merges")
 
 class Branch(object):
   _BRANCHES_BY_ID = { }
@@ -144,25 +117,6 @@ class Branch(object):
     return hash(self.name)
 
   @lazy
-  def parents(self):
-    u = getUpstreamBranch(self.name)
-    if u:
-      parents = [Branch(u)]
-      spec = "%s..%s" % (u, self.name)
-      mergeLog = sh.git.log("--merges", "--first-parent", "--format=%P", spec,
-                            _tty_out=False, _iter=True)
-      for l in mergeLog:
-        for rev in l.strip().split()[1:]:
-          try:
-            parents.append(type(self).REV_MAP[rev])
-          except KeyError:
-            # Awkward... carry on regardless
-            pass
-      return frozenset(parents)
-    else:
-      return frozenset()
-
-  @lazy
   def _refLog(self):
     """
     Returns a map of commit hash to reference weight for this branch. If several
@@ -197,45 +151,69 @@ class Branch(object):
     return rev_map
 
   @lazy
-  def commits(self):
-    """
-    All commits made to this branch, in reverse chronological order.
+  def allCommits(self):
+    """All commits made to this branch, in reverse chronological order.
 
-    Uses `git log`.
+    Merges will only list commit hashes, not branches.
+
     """
-    return commitlog(self.name)
+    log = sh.git.log("--first-parent", "--format=%H:%P:%s", self.name,
+                     _iter=True, _tty_out=False)
+    return [Commit(h, s.strip(), m.split(" ")[1:]) for h, m, s in
+            (l.split(":", 2) for l in log)]
 
   @lazy
-  def unpushedCommits(self):
-    """
-    All commits made to this branch that have not yet been pushed to a parant,
-    in reverse chronological order.
+  def upstream(self):
+    """The branch set as this branch's 'upstream', or None if none is set."""
+    upstreamName = getUpstreamBranch(self.name)
+    return None if upstreamName is None else Branch(upstreamName)
 
-    `git log` and `git reflog` are used to detect unmerged commits in parents, in
-    similar fashion to `git pull`.
+  @lazy
+  def upstreamCommit(self):
+    """The most recent commit this branch shares with its upstream.
+
+    `git log` and `git reflog` are used to detect rebases on the upstream
+    branch, in similar fashion to `git pull`.
 
     """
-    myLog = self.commits
-    myRefLog = self._refLog
-    parent = Branch(getUpstreamBranch(self.name))
-    parentsLog = set(c.hash for c in parent.commits)
-    parentsRefLog = parent._refLog
-    unpushed = []
-    for c in myLog:
-      if c.hash in parentsLog:
+    if self.upstream is None:
+      return None
+    commitHashes = set(c.hash for c in self.allCommits)
+    firstUpstreamReference = first(h for h in self.upstream._refLog if h in commitHashes)
+    upstreamCommitHashes = set(c.hash for c in self.upstream.allCommits)
+    return first(c for c in self.allCommits
+                 if c.hash in upstreamCommitHashes or c == firstUpstreamReference)
+
+  @lazy
+  def commits(self):
+    """All commits made to this branch since it left upstream, including merges."""
+    commits = []
+    for c in self.allCommits:
+      if c == self.upstreamCommit:
         break
-      if c.hash in parentsRefLog:
-        if c.hash not in myRefLog or parentsRefLog[c.hash] > myRefLog[c.hash]:
-          break
-      unpushed.append(c)
-    return tuple(unpushed)
+      if c.merges:
+        mergedBranches = tuple(type(self).REV_MAP.get(rev, rev) for rev in c.merges)
+        commits.append(Commit(c.hash, c.subject, mergedBranches))
+      else:
+        commits.append(c)
+    return commits
+
+  @lazy
+  def parents(self):
+    """All parents of this branch, whether upstream or merged."""
+    parents = [p for c in self.commits for p in c.merges if type(p) == Branch]
+    if self.upstream is not None:
+      parents.append(self.upstream)
+    return frozenset(parents)
 
   @lazy
   def children(self):
+    """All branches which have this branch as upstream or merged."""
     return frozenset(b for b in type(self).ALL if self in b.parents)
 
   @lazy
   def modtime(self):
+    """The timestamp of the latest commit to this branch."""
     log = tuple(sh.git.log("-n5", "--format=%at", self.name, "--",
                            _tty_out=False, _iter=True))
     for line in log:
@@ -246,6 +224,7 @@ class Branch(object):
 
   @lazy
   def unmerged(self):
+    """The number of parent commits that have not been pulled to this branch."""
     unmerged = 0
     for parent in self.parents:
       log = sh.git.log("--format=tformat:.", "%s..%s" % (self.name, parent.name),

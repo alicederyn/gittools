@@ -19,7 +19,7 @@ from collections import namedtuple
 from docopt import docopt
 from itertools import takewhile
 from shutil import copyfile
-from utils import revparse, commitlog, getBranches, getUpstreamBranch, hierarchy, Branch
+from utils import revparse, getBranches, getUpstreamBranch, Branch
 
 rebase_branch = "git rebase-branch"
 
@@ -42,50 +42,58 @@ def getBranchesFile():
   branchesFile = os.path.join(rebaseDir, "branch-snapshots")
   return branchesFile
 
-def lastParentCommit(branch):
-  commits = (commit.hash for commit in commitlog(branch))
-  for hash in commits:
-    if hash in Branch.REV_MAP and Branch.REV_MAP[hash].name != branch:
-        return hash
-  return None
+def allChildren(branch):
+  children = set()
+  todo = [branch]
+  while todo:
+    b = todo.pop(0)
+    if b not in children:
+      children.add(b)
+      todo.extend(b.children)
+  return children
 
-def getPicks(branch, parent):
-  return reversed(Branch(branch).unpushedCommitLog)
-
-def getRebaseArgs(endBranch, parents, children, execCmd, onto):
-  todo = []
-  for leaf in sorted(branch for branch, childs in children.iteritems() if not childs):
-    todo.extend(route(to=leaf, tree=parents))
-  rootBranch = parents[todo[0]]
-  if rootBranch:
-    rootCommit = lastParentCommit(endBranch)
-  else:
-    rootCommit = None
-
-  args = ["git", "rebase", "-i"]
-  if rootCommit is not None:
-    args.append(revparse("--short", rootCommit))
-  else:
-    args.append("--root")
-  args.append(endBranch)
+def getRebaseArgs(root, execCmd, onto):
+  args = ("git", "rebase", "-i", "--root", root.name)
 
   scriptLines = []
-  last = rootBranch
+  todo = [root]
+  blocked = allChildren(root)  # Initially, all children will require root to be completed
+  last = None
   done = set()
+  resetNextCommit = False
   while todo:
-    branch = todo.pop(0)
+    branch = todo.pop()
     if branch not in done:
+      blocked.remove(branch)
       done.add(branch)
-      scriptLines.append("# Branch %s" % (branch,))
-      if parents[branch] not in parents:
-        scriptLines.append("exec %s --reset %s" % (rebase_branch, onto or rootBranch or ""))
-      elif parents[branch] != last:
-        scriptLines.append("exec %s --reset %s" % (rebase_branch, parents[branch]))
-      for pick in reversed(Branch(branch).unpushedCommits):
-        scriptLines.append("pick %s %s" % (revparse("--short", pick.hash), pick.subject))
+      for child in branch.children:
+        if child in blocked and not any(c in blocked for c in child.parents):
+          todo.append(child)
+      scriptLines.append("# Branch %s" % branch.name)
+      if onto is not None:
+        scriptLines.append("exec %s --reset %s" % (rebase_branch, onto))
+        onto = None
+      elif branch.upstream is None:
+        resetNextCommit = True
+      elif branch.upstream is not last:
+        scriptLines.append("exec %s --reset %s" % (rebase_branch, branch.upstream.name))
+      for commit in reversed(branch.commits):
+        if commit.merges:
+          merges = []
+          for m in commit.merges:
+            try:
+              merges.append(m.name)
+            except AttributeError:
+              merges.append(revparse("--short", m))
+          scriptLines.append("exec %s --merge %s" % (rebase_branch, " ".join(merges)))
+        else:
+          shortHash = revparse("--short", commit.hash)
+          command = "git reset --hard" if resetNextCommit else "pick"
+          scriptLines.append("%s %s # %s" % (command, shortHash, commit.subject))
+        resetNextCommit = False
         if execCmd is not None:
           scriptLines.append("exec " + execCmd)
-      scriptLines.append("exec %s --create %s" % (rebase_branch, branch))
+      scriptLines.append("exec %s --create %s" % (rebase_branch, branch.name))
       scriptLines.append("")
       last = branch
   scriptLines.append("exec %s --commit" % (rebase_branch,))
@@ -117,16 +125,13 @@ def startAction(arguments):
   rebasing = os.path.isdir(rebaseDir)
   assert not rebasing
   try:
-    branch = arguments["<branch>"][0]
+    branchName = arguments["<branch>"][0]
   except IndexError:
-    branch = revparse("--abbrev-ref", "HEAD")
+    branchName = revparse("--abbrev-ref", "HEAD")
+  branch = Branch(branchName)
   onto = arguments["--onto"]
-  branches = getBranches()
-  assert onto is None or onto == "" or onto in branches
-  assert onto != ""  # Buggy
-  parents, children = hierarchy(branch, branches=branches)
   execCmd = arguments["--exec"]
-  gitargs, script = getRebaseArgs(branch, parents, children, execCmd, onto)
+  gitargs, script = getRebaseArgs(branch, execCmd, onto)
   if arguments["--dry-run"]:
     print " ".join(gitargs)
     print
@@ -172,7 +177,7 @@ def resetAction(arguments):
   branchesFile = getBranchesFile()
   with open(branchesFile, "a") as f:
     f.write("/ %s\n" % (branch or "/"))
-  assert branch is None or branch in getBranches() or branch in commits
+  # assert branch is None or branch in getBranches() or branch in commits
   assert branch is not None  # Buggy
   if branch is None:
     sh.git("update-ref", "-d", "HEAD")
@@ -225,3 +230,4 @@ if __name__ == '__main__':
     mergeAction(arguments)
   else:
     startAction(arguments)
+
