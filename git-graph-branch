@@ -16,11 +16,12 @@ Options:
 """
 # Observed bugs:
 #  1) git branch -f BRANCH commit  -- not noticed by --watch
-import os.path, sh, sys, time, traceback, watchdog.events, watchdog.observers
+import os.path, sh, sys, threading, time, traceback, watchdog.events, watchdog.observers
 from bisect import bisect_left
 from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from docopt import docopt
+from fnmatch import fnmatch
 from itertools import chain, cycle, product
 from utils import Branch, revparse
 
@@ -221,42 +222,66 @@ def printGraph(clearScreen = False, color = False):
     sys.stdout.write('\x1b[J')
     sys.stdout.flush()
 
-def total_milliseconds(delta):
-  return delta.total_seconds() * 1000 + delta.microseconds // 1000
+def fractionalSeconds(delta):
+  return delta.total_seconds() + delta.microseconds / 10000000.0
 
 def sleepUntil(dt):
-  waitSecs = total_milliseconds(dt - datetime.utcnow()) / 1000.0
+  waitSecs = fractionalSeconds(dt - datetime.utcnow())
   if waitSecs > 0:
     time.sleep(waitSecs)
 
 class Watcher(watchdog.events.FileSystemEventHandler):
-  def __init__(self, path):
-    self.observer = watchdog.observers.Observer()
-    self.observer.schedule(self, path, recursive = True)
-    self.eventReceived = False
+  def __init__(self, path, patterns, waitToMerge, maxUpdateFreq):
+    self.path = path
+    self.patterns = patterns
+    self.event = threading.Event()
+    self.lastEvent = None
+    self.lastSeen = None
+    self.waitToMerge = waitToMerge
+    self.maxUpdateFreq = maxUpdateFreq
   
   def __enter__(self):
+    self.observer = watchdog.observers.Observer()
+    self.observer.schedule(self, self.path, recursive = True)
     self.observer.start()
+    self.notBefore = datetime.utcnow()
     return self
 
   def __exit__(self, type, value, traceback):
     self.observer.stop()
+    self.observer = None
 
   def on_any_event(self, event):
-    self.eventReceived = True
+    if any(fnmatch(event.src_path, pattern) for pattern in self.patterns):
+      self.lastEvent = datetime.utcnow()
+      self.event.set()
+
+  def lastEvent(self):
+    self.lastSeen = self.lastEvent
+    return self.lastSeen
 
   def awaitEvent(self):
-    while not self.eventReceived:
-      time.sleep(1)
-    self.eventReceived = False
+    sleepUntil(self.notBefore)
+    seen = self.lastEvent
+    while self.lastSeen is seen:
+      self.event.wait()
+      self.event.clear()
+      seen = self.lastEvent
+    while True:
+      waitSecs = fractionalSeconds(seen + self.waitToMerge - datetime.utcnow())
+      if waitSecs <= 0:
+        break
+      time.sleep(waitSecs)
+      seen = self.lastEvent
+    self.lastSeen = seen
+    self.notBefore = datetime.utcnow() + self.maxUpdateFreq
 
 def watchForChanges(waitToMerge, maxUpdateFreq, color):
   gitdir = revparse(git_dir=True)
-  logsdir = os.path.join(gitdir, 'logs')
-  config = os.path.realpath(os.path.join(gitdir, 'config'))
-  with Watcher(logsdir) as watcher:
+  head = os.path.join(gitdir, 'HEAD')
+  branches = os.path.join(gitdir, 'refs', 'heads', '*')
+  with Watcher(gitdir, [head, branches], waitToMerge, maxUpdateFreq) as watcher:
     while True:
-      nextEarliestUpdate = datetime.utcnow() + maxUpdateFreq - waitToMerge
       Branch.clear_cache()
       try:
         printGraph(clearScreen = True, color = color)
@@ -266,7 +291,6 @@ def watchForChanges(waitToMerge, maxUpdateFreq, color):
         traceback.print_exc(3)
         sys.stdout.write('\x1b[J')
         sys.stdout.flush()
-      sleepUntil(nextEarliestUpdate)
       watcher.awaitEvent()
 
 if __name__ == '__main__':
