@@ -110,10 +110,16 @@ def printGraph(clearScreen = False, color = False):
         aColour = getColour(a, colours, colourseq)
       setColour(aColour)
       if a is None:
-        sys.stdout.write(' ')
+        if firstIndex < i <= lastIndex:
+          sys.stdout.write('─')
+        else:
+          sys.stdout.write(' ')
       elif a == b:
         if not missingParents:
-          sys.stdout.write('┴')
+          if i <= firstIndex and i < lastIndex:
+            sys.stdout.write('└')
+          else:
+            sys.stdout.write('┴')
         else:
           sys.stdout.write('├')
       elif i < firstIndex:
@@ -121,8 +127,10 @@ def printGraph(clearScreen = False, color = False):
       elif i <= lastIndex:
         if i not in parentIndices:
           sys.stdout.write('╪')
-        else:
+        elif i == firstIndex:
           sys.stdout.write('├')
+        else:
+          sys.stdout.write('┼')
       else:
         sys.stdout.write('│')
       sys.stdout.write('\x1b[0m')
@@ -140,12 +148,18 @@ def printGraph(clearScreen = False, color = False):
     for a in newColumns[:-1]:
       aColour = getColour(a, colours, colourseq)
       setColour(aColour)
-      sys.stdout.write('┌─')
+      if a == firstIndex:
+        sys.stdout.write('┌─')
+      else:
+        sys.stdout.write('┬─')
       sys.stdout.write('\x1b[0m')
     if lastIndex >= len(awaitingParents):
       setColour(colour)
       if missingParents:
-        sys.stdout.write('┌')
+        if firstIndex == lastIndex:
+          sys.stdout.write('┌')
+        else:
+          sys.stdout.write('┬')
       else:
         sys.stdout.write('─')
       sys.stdout.write(arrowhead)
