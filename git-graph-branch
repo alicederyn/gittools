@@ -2,6 +2,10 @@
 # coding=utf-8
 """Usage: git-graph-branch [options]
 
+Symbols:
+    ⇧   This branch has a remote of the same name
+    ⚠   This branch is out of sync with a remote of the same name
+
 Options:
     -h --help               Show this screen.
     -w, --watch             Continue to watch for git repo changes after printing the graph.
@@ -14,7 +18,7 @@ Options:
 #  1) git branch -f BRANCH commit  -- not noticed by --watch
 import os.path, sh, sys, time, traceback, watchdog.events, watchdog.observers
 from bisect import bisect_left
-from collections import namedtuple
+from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from docopt import docopt
 from itertools import chain, cycle, product
@@ -23,6 +27,9 @@ from utils import Branch, revparse
 def getBranches():
   """Returns all branches, oldest first."""
   return sorted(Branch.ALL, key = lambda b : b.modtime or datetime.fromtimestamp(1))
+
+def getRemotes():
+  return frozenset(t.strip() for t in sh.git.branch('--remotes', _tty_out=False, _iter=True))
 
 def alternatingColourIds():
   for lowr,lowb,lowg in product(range(2,-1,-1), repeat=3):
@@ -41,12 +48,15 @@ def pickNext(awaitingParents, todo, done):
       return (b.modtime, b)
   return youngestBranchLeaf(candidate)[1]
 
-def getColour(branch, colours, colourseq):
+def localParents(b, remotes):
+  return [p for p in b.parents if not p.name in remotes]
+
+def getColour(branch, remotes, colours, colourseq):
   if branch is None or colourseq is None:
     return 0
   if branch not in colours:
     if len(branch.children) == 0:
-      if len(branch.parents) == 0:
+      if len(localParents(branch, remotes)) == 0:
         colours[branch] = None
       else:
         colours[branch] = colourseq.next()
@@ -62,6 +72,10 @@ def setColour(colour):
 
 def printGraph(clearScreen = False, color = False):
   branches = getBranches()
+  remotes = getRemotes()
+  localsWithRemotes = defaultdict(set)
+  for r in remotes:
+    localsWithRemotes[r.split('/', 1)[-1]].add(r)
   try:
     currentBranch = Branch(revparse("--abbrev-ref", "HEAD"))
   except ValueError:
@@ -86,13 +100,14 @@ def printGraph(clearScreen = False, color = False):
     assert not any (c in todo for c in b.children)
     todo = [x for x in todo if x != b]
     done.add(b)
-    colour = getColour(b, colours, colourseq)
+    colour = getColour(b, remotes, colours, colourseq)
     try:
       index = awaitingParents.index(b)
     except ValueError:
       index = len(awaitingParents)
-    parentIndices = [i for i, p in enumerate(awaitingParents) if p in b.parents]
-    missingParents = [p for p in b.parents if p not in awaitingParents and p not in done]
+    parentIndices = [i for i, p in enumerate(awaitingParents) if p in localParents(b, remotes)]
+    missingParents = [p for p in localParents(b, remotes)
+                      if p not in awaitingParents and p not in done]
     if missingParents:
       parentIndices.append(index)
       if len(missingParents) > 1:
@@ -105,9 +120,9 @@ def printGraph(clearScreen = False, color = False):
     sys.stdout.write(' ')
     for i, a in enumerate(awaitingParents):
       if a and sum(1 for c in a.children if c not in done) == 1:
-        aColour = getColour(firstChilds[i], colours, colourseq)
+        aColour = getColour(firstChilds[i], remotes, colours, colourseq)
       else:
-        aColour = getColour(a, colours, colourseq)
+        aColour = getColour(a, remotes, colours, colourseq)
       setColour(aColour)
       if a is None:
         if firstIndex < i <= lastIndex:
@@ -146,7 +161,7 @@ def printGraph(clearScreen = False, color = False):
       sys.stdout.write('\x1b[0m')
     newColumns = missingParents if index == len(awaitingParents) else missingParents[1:]
     for a in newColumns[:-1]:
-      aColour = getColour(a, colours, colourseq)
+      aColour = getColour(a, remotes, colours, colourseq)
       setColour(aColour)
       if a == firstIndex:
         sys.stdout.write('┌─')
@@ -167,10 +182,17 @@ def printGraph(clearScreen = False, color = False):
     sys.stdout.write('  ')
     if b == currentBranch:
       sys.stdout.write('\x1b[1;35m')
-    elif '/' in b.name:
-      sys.stdout.write('\x1b[1;30m')
     sys.stdout.write(b.name)
     sys.stdout.write('\x1b[0m')
+    if b.name in localsWithRemotes:
+      sys.stdout.write(' ')
+      version = revparse(b.name)
+      if any(revparse(r) != version for r in localsWithRemotes[b.name]):
+        sys.stdout.write('\x1b[1;31m')
+        sys.stdout.write('⚠')
+        sys.stdout.write('\x1b[0m')
+      else:
+        sys.stdout.write('⇧')
     if b.unmerged > 0:
       sys.stdout.write('\x1b[1;31m')
       sys.stdout.write(" [%d unmerged]" % b.unmerged)
