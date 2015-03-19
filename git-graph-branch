@@ -97,7 +97,7 @@ def printGraph(clearScreen = False, color = False):
       parentIndices.append(index)
       if len(missingParents) > 1:
         parentIndices.append(len(awaitingParents) + len(missingParents) - 2)
-      arrowhead = '>'
+      arrowhead = '◇'
     else:
       arrowhead = '▶'
     firstIndex = min([index] + parentIndices)
@@ -117,7 +117,7 @@ def printGraph(clearScreen = False, color = False):
       elif a == b:
         if not missingParents:
           if i <= firstIndex and i < lastIndex:
-            sys.stdout.write('└')
+            sys.stdout.write('╰')
           else:
             sys.stdout.write('┴')
         else:
