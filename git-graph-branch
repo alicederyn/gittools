@@ -269,12 +269,16 @@ def printGraph(color, BranchIterator, clearScreen = False):
       sys.stdout.write(' ')
       version = b.allCommits[0].hash
       if any(remoteHashes[r] != version for r in localsWithRemotes[b.name]):
-        sys.stdout.write('🔶')
+        sys.stdout.write('🔶 ')
       else:
-        sys.stdout.write('🔷')
+        sys.stdout.write('🔷 ')
     if b.unmerged > 0:
+      sys.stdout.write(' ')
       sys.stdout.write('\x1b[1;31m')
-      sys.stdout.write(" [%d unmerged]" % b.unmerged)
+      if b.unmerged <= 20:
+        sys.stdout.write('%s unmerged' % unichr(0x245F + b.unmerged))
+      else:
+        sys.stdout.write(" [%d unmerged]" % b.unmerged)
       sys.stdout.write('\x1b[0m')
     if clearScreen:
       sys.stdout.write('\x1b[K')
