@@ -358,7 +358,8 @@ def watchForChanges(waitToMerge, maxUpdateFreq, action):
   gitdir = revparse(git_dir=True)
   head = os.path.join(gitdir, 'HEAD')
   branches = os.path.join(gitdir, 'refs', 'heads', '*')
-  with Watcher(gitdir, [head, branches], waitToMerge, maxUpdateFreq) as watcher:
+  remotes = os.path.join(gitdir, 'refs', 'remotes', '*', '*')
+  with Watcher(gitdir, [head, branches, remotes], waitToMerge, maxUpdateFreq) as watcher:
     while True:
       Branch.clear_cache()
       action()
