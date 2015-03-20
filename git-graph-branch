@@ -14,8 +14,6 @@ Options:
     --max-update-freq=<ms>  Will not update more frequently than this [default: 500].
     --color                 Colorizes branches
     --profile               Profiles the app
-    --blocker-algo=<algo>   Algorithm to select the next blocker to remove for a branch.
-                            One of: strict, fast [default: strict].
     --order-algo=<algo>     Algorithm to select the next branch to unblock.
                             One of: simple, priority [default: priority]
 """
@@ -54,7 +52,7 @@ def allChildren(branch):
         allChildren.add(child)
   return allChildren
 
-class FastBranchBlockers(object):
+class BranchBlockers(object):
   def __init__(self, branches):
     self._branches = set(branches)
     self._blockers = {}
@@ -85,51 +83,6 @@ class FastBranchBlockers(object):
     self._branches.remove(branch)
     if branch in self._blockers:
       del self._blockers[branch]
-
-class StrictBranchBlockers(object):
-  def __init__(self, branches):
-    self._branches = set(branches)
-    self._blockers = {}
-
-  def keys(self):
-    return self._branches
-
-  def __len__(self):
-    return len(self._branches)
-
-  def _calculate(self, branch):
-    if branch in self._blockers and self._blockers[branch] is None:
-      raise RuntimeError("Branch loop detected starting from %s" % branch.name)
-    youngest, blocker = self._blockers.get(branch, (None, None))
-    if blocker in self._branches:
-      return (youngest, blocker)
-    elif youngest in self._branches and youngest is not branch:
-      blocker = self._calculate(youngest)[1]
-    else:
-      self._blockers[branch] = None  # Prevent infinite loops
-      youngest, blocker = branch, branch
-      for c in branch.children:
-        if c in self._branches:
-          candidateYoungest, candidateBlocker = self._calculate(c)
-          if youngest.modtime < candidateYoungest.modtime:
-            youngest = candidateYoungest
-            blocker = candidateBlocker
-          elif blocker is branch:
-            blocker = candidateBlocker
-    self._blockers[branch] = (youngest, blocker)
-    return (youngest, blocker)
-
-  def __contains__(self, branch):
-    return branch in self._branches
-
-  def __getitem__(self, branch):
-    """Returns the youngest unblocked blocker of branch."""
-    if not branch in self._branches:
-      raise KeyError(branch)
-    return self._calculate(branch)[1]
-
-  def __delitem__(self, branch):
-    self._branches.remove(branch)
 
 class PriorityBranchIterator(object):
   def __init__(self, blockers):
@@ -205,7 +158,7 @@ def setColour(colour):
   if colour:
     sys.stdout.write('\x1b[%s' % colour)
 
-def printGraph(color, BranchBlockers, BranchIterator, clearScreen = False):
+def printGraph(color, BranchIterator, clearScreen = False):
   branches = getBranches()
   remotes = getRemotes()
   remoteHashes = dict(zip(remotes, revparse(*remotes).splitlines()))
@@ -422,8 +375,6 @@ def getPrintGraphArgs(options):
                        % (options[name], name, ", ".join(algorithms.keys())))
   return {
     'color'          : options['--color'],
-    'BranchBlockers' : select('--blocker-algo', strict   = StrictBranchBlockers,
-                                                fast     = FastBranchBlockers),
     'BranchIterator' : select('--order-algo',   simple   = SimpleBranchIterator,
                                                 priority = PriorityBranchIterator),
   }
