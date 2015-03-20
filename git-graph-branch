@@ -3,8 +3,8 @@
 """Usage: git-graph-branch [options]
 
 Symbols:
-    ⇧   This branch has a remote of the same name
-    ⚠   This branch is out of sync with a remote of the same name
+    🔷   This branch has a remote of the same name
+    🔶   This branch is out of sync with a remote of the same name
 
 Options:
     -h --help               Show this screen.
@@ -269,11 +269,9 @@ def printGraph(color, BranchIterator, clearScreen = False):
       sys.stdout.write(' ')
       version = b.allCommits[0].hash
       if any(remoteHashes[r] != version for r in localsWithRemotes[b.name]):
-        sys.stdout.write('\x1b[1;31m')
-        sys.stdout.write('⚠')
-        sys.stdout.write('\x1b[0m')
+        sys.stdout.write('🔶')
       else:
-        sys.stdout.write('⇧')
+        sys.stdout.write('🔷')
     if b.unmerged > 0:
       sys.stdout.write('\x1b[1;31m')
       sys.stdout.write(" [%d unmerged]" % b.unmerged)
