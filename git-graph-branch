@@ -14,10 +14,14 @@ Options:
     --max-update-freq=<ms>  Will not update more frequently than this [default: 500].
     --color                 Colorizes branches
     --profile               Profiles the app
+    --blocker-algo=<algo>   Algorithm to select the next blocker to remove for a branch.
+                            One of: strict, fast [default: strict].
+    --order-algo=<algo>     Algorithm to select the next branch to unblock.
+                            One of: simple, priority [default: priority]
 """
 # Observed bugs:
 #  1) git branch -f BRANCH commit  -- not noticed by --watch
-import os.path, sh, sys, threading, time, traceback, watchdog.events, watchdog.observers
+import heapq, os.path, sh, sys, threading, time, traceback, watchdog.events, watchdog.observers
 from bisect import bisect_left
 from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
@@ -31,7 +35,7 @@ def getBranches():
   return sorted(Branch.ALL, key = lambda b : b.modtime or datetime.fromtimestamp(1))
 
 def getRemotes():
-  return frozenset(t.strip() for t in sh.git.branch('--remotes', _tty_out=False, _iter=True))
+  return frozenset(b.name for b in Branch.REMOTES)
 
 def alternatingColourIds():
   for lowr,lowb,lowg in product(range(2,-1,-1), repeat=3):
@@ -39,16 +43,145 @@ def alternatingColourIds():
       v = 16 + (highr*3+lowr)*36 + (highg*3+lowg)*6 + (highb*3+lowb)
       yield v
 
-def pickNext(awaitingParents, todo, done):
-  candidate = awaitingParents[-1] if awaitingParents else todo[0]
-  def youngestBranchLeaf(b):
-    leaves = [youngestBranchLeaf(c) for c in b.children if c not in done]
-    if leaves:
-      age, youngest = max(leaves)
-      return (max(age, b.modtime), youngest)
+def allChildren(branch):
+  allChildren = set()
+  todo = [branch]
+  while todo:
+    b = todo.pop()
+    for child in b.children:
+      if child not in allChildren:
+        todo.append(child)
+        allChildren.add(child)
+  return allChildren
+
+class FastBranchBlockers(object):
+  def __init__(self, branches):
+    self._branches = set(branches)
+    self._blockers = {}
+
+  def keys(self):
+    return self._branches
+
+  def __len__(self):
+    return len(self._branches)
+
+  def __contains__(self, branch):
+    return branch in self._branches
+
+  def __getitem__(self, branch):
+    if not branch in self._branches:
+      raise KeyError(branch)
+    if not branch.children:
+      return branch
+    children = self._blockers.get(branch)
+    if children is None:
+      self._blockers[branch] = children = list(allChildren(branch))
+      children.sort(key = lambda b : b.modtime)
+    while children and children[-1] not in self._branches:
+      children.pop()
+    return self[children[-1]] if children else branch
+
+  def __delitem__(self, branch):
+    self._branches.remove(branch)
+    if branch in self._blockers:
+      del self._blockers[branch]
+
+class StrictBranchBlockers(object):
+  def __init__(self, branches):
+    self._branches = set(branches)
+    self._blockers = {}
+
+  def keys(self):
+    return self._branches
+
+  def __len__(self):
+    return len(self._branches)
+
+  def _calculate(self, branch):
+    if branch in self._blockers and self._blockers[branch] is None:
+      raise RuntimeError("Branch loop detected starting from %s" % branch.name)
+    youngest, blocker = self._blockers.get(branch, (None, None))
+    if blocker in self._branches:
+      return (youngest, blocker)
+    elif youngest in self._branches and youngest is not branch:
+      blocker = self._calculate(youngest)[1]
     else:
-      return (b.modtime, b)
-  return youngestBranchLeaf(candidate)[1]
+      self._blockers[branch] = None  # Prevent infinite loops
+      youngest, blocker = branch, branch
+      for c in branch.children:
+        if c in self._branches:
+          candidateYoungest, candidateBlocker = self._calculate(c)
+          if youngest.modtime < candidateYoungest.modtime:
+            youngest = candidateYoungest
+            blocker = candidateBlocker
+          elif blocker is branch:
+            blocker = candidateBlocker
+    self._blockers[branch] = (youngest, blocker)
+    return (youngest, blocker)
+
+  def __contains__(self, branch):
+    return branch in self._branches
+
+  def __getitem__(self, branch):
+    """Returns the youngest unblocked blocker of branch."""
+    if not branch in self._branches:
+      raise KeyError(branch)
+    return self._calculate(branch)[1]
+
+  def __delitem__(self, branch):
+    self._branches.remove(branch)
+
+class PriorityBranchIterator(object):
+  def __init__(self, blockers):
+    self._blockers = blockers
+    self._queue = list(blockers.keys())
+    self._queue.sort(key = lambda b: b.modtime)
+    self._priorities = []
+
+  def __iter__(self):
+    return self
+
+  def next(self):
+    blocker = None
+    while self._priorities and self._priorities[-1] not in self._blockers:
+      self._priorities.pop()
+    while self._queue and self._queue[-1] not in self._blockers:
+      self._queue.pop()
+    if self._priorities:
+      blocker = self._blockers[self._priorities[-1]]
+    elif self._queue:
+      blocker = self._blockers[self._queue[-1]]
+    else:
+      raise StopIteration()
+    assert blocker in self._blockers
+    self._priorities.extend(p for p in blocker.parents
+                            if p in self._blockers and p not in self._priorities)
+    del self._blockers[blocker]
+    return blocker
+
+class SimpleBranchIterator(object):
+  def __init__(self, blockers):
+    self._blockers = blockers
+    self._roots = list(b for b in blockers.keys()
+                       if not any(p in self._blockers for p in b.parents))
+    self._roots.sort(key = lambda b: b.modtime)
+    self._currentRoots = []
+
+  def __iter__(self):
+    return self
+
+  def next(self):
+    if not self._currentRoots:
+      while self._roots and self._roots[-1] not in self._blockers:
+        self._roots.pop()
+      if not self._roots:
+        raise StopIteration()
+      self._currentRoots.append(self._roots.pop())
+    blocker = self._blockers[self._currentRoots[0]]
+    if self._currentRoots[0] is blocker:
+      self._currentRoots.pop(0)
+    del self._blockers[blocker]
+    return blocker
 
 def localParents(b, remotes):
   return [p for p in b.parents if not p.name in remotes]
@@ -72,20 +205,15 @@ def setColour(colour):
   if colour:
     sys.stdout.write('\x1b[%s' % colour)
 
-def printGraph(clearScreen = False, color = False):
+def printGraph(color, BranchBlockers, BranchIterator, clearScreen = False):
   branches = getBranches()
   remotes = getRemotes()
+  remoteHashes = dict(zip(remotes, revparse(*remotes).splitlines()))
   localsWithRemotes = defaultdict(set)
   for r in remotes:
     localsWithRemotes[r.split('/', 1)[-1]].add(r)
-  try:
-    currentBranch = Branch(revparse("--abbrev-ref", "HEAD"))
-  except ValueError:
-    currentBranch = None
- 
+
   done = set()
-  todo = list(branches)
-  todo.reverse()
   awaitingParents = []
   firstChilds = []
   colours = {}
@@ -93,14 +221,12 @@ def printGraph(clearScreen = False, color = False):
     colourseq = cycle(('38;5;%dm' % i for i in alternatingColourIds()))
   else:
     colourseq = None
- 
+
   if clearScreen:
     sys.stdout.write('\x1b[0;0H')
-  while todo or awaitingParents:
-    b = pickNext(awaitingParents, todo, done)
-    assert not any (x in done for x in todo)
-    assert not any (c in todo for c in b.children)
-    todo = [x for x in todo if x != b]
+
+  for b in BranchIterator(BranchBlockers(branches)):
+    assert b not in done
     done.add(b)
     colour = getColour(b, remotes, colours, colourseq)
     try:
@@ -182,14 +308,14 @@ def printGraph(clearScreen = False, color = False):
       sys.stdout.write(arrowhead)
       sys.stdout.write('\x1b[0m')
     sys.stdout.write('  ')
-    if b == currentBranch:
+    if b == Branch.HEAD:
       sys.stdout.write('\x1b[1;35m')
     sys.stdout.write(b.name)
     sys.stdout.write('\x1b[0m')
     if b.name in localsWithRemotes:
       sys.stdout.write(' ')
-      version = revparse(b.name)
-      if any(revparse(r) != version for r in localsWithRemotes[b.name]):
+      version = b.allCommits[0].hash
+      if any(remoteHashes[r] != version for r in localsWithRemotes[b.name]):
         sys.stdout.write('\x1b[1;31m')
         sys.stdout.write('⚠')
         sys.stdout.write('\x1b[0m')
@@ -240,7 +366,7 @@ class Watcher(watchdog.events.FileSystemEventHandler):
     self.lastSeen = None
     self.waitToMerge = waitToMerge
     self.maxUpdateFreq = maxUpdateFreq
-  
+
   def __enter__(self):
     self.observer = watchdog.observers.Observer()
     self.observer.schedule(self, self.path, recursive = True)
@@ -277,36 +403,54 @@ class Watcher(watchdog.events.FileSystemEventHandler):
     self.lastSeen = seen
     self.notBefore = datetime.utcnow() + self.maxUpdateFreq
 
-def watchForChanges(waitToMerge, maxUpdateFreq, color):
+def watchForChanges(waitToMerge, maxUpdateFreq, action):
   gitdir = revparse(git_dir=True)
   head = os.path.join(gitdir, 'HEAD')
   branches = os.path.join(gitdir, 'refs', 'heads', '*')
   with Watcher(gitdir, [head, branches], waitToMerge, maxUpdateFreq) as watcher:
     while True:
       Branch.clear_cache()
-      try:
-        printGraph(clearScreen = True, color = color)
-      except Exception:
-        sys.stdout.write('\n')
-        sys.stdout.flush()
-        traceback.print_exc(3)
-        sys.stdout.write('\x1b[J')
-        sys.stdout.flush()
+      action()
       watcher.awaitEvent()
 
-if __name__ == '__main__':
-  arguments = docopt(__doc__)
-  if arguments['--watch']:
+def getPrintGraphArgs(options):
+  def select(name, **algorithms):
     try:
+      return algorithms[options[name]]
+    except KeyError:
+      sys.stderr.write('%s not a valid choice for %s (must be one of: %s)'
+                       % (options[name], name, ", ".join(algorithms.keys())))
+  return {
+    'color'          : options['--color'],
+    'BranchBlockers' : select('--blocker-algo', strict   = StrictBranchBlockers,
+                                                fast     = FastBranchBlockers),
+    'BranchIterator' : select('--order-algo',   simple   = SimpleBranchIterator,
+                                                priority = PriorityBranchIterator),
+  }
+
+if __name__ == '__main__':
+  options = docopt(__doc__)
+  printGraphArgs = getPrintGraphArgs(options)
+  if options['--watch']:
+    try:
+      def action():
+        try:
+          printGraph(clearScreen = True, **printGraphArgs)
+        except Exception:
+          sys.stdout.write('\n')
+          sys.stdout.flush()
+          traceback.print_exc(3)
+          sys.stdout.write('\x1b[J')
+          sys.stdout.flush()
       watchForChanges(
-          waitToMerge = timedelta(milliseconds = int(arguments['--wait-to-merge'])),
-          maxUpdateFreq = timedelta(milliseconds = int(arguments['--max-update-freq'])),
-          color = arguments['--color'])
+          waitToMerge = timedelta(milliseconds = int(options['--wait-to-merge'])),
+          maxUpdateFreq = timedelta(milliseconds = int(options['--max-update-freq'])),
+          action = action)
     except KeyboardInterrupt:
       pass
-  elif arguments['--profile']:
+  elif options['--profile']:
     import cProfile
-    cProfile.run('printGraph(clearScreen=False, color = %s)' % arguments['--color'])
+    cProfile.run('printGraph(**printGraphArgs)')
   else:
-    printGraph(clearScreen=False, color = arguments['--color'])
+    printGraph(**printGraphArgs)
 

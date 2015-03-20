@@ -1,8 +1,9 @@
 import re, sh
 from collections import defaultdict, namedtuple
 from datetime import datetime
+from itertools import chain
 
-__all__ = ['revparse', 'getUpstreamBranch', 'getBranches', 'Branch', 'Commit']
+__all__ = ['revparse', 'getUpstreamBranch', 'Branch', 'Commit']
 
 def first(collection, default=None):
   return next(iter(collection), default)
@@ -19,10 +20,8 @@ def getUpstreamBranch(branch):
   except ValueError:
     return None
 
-def getBranches():
-  return revparse("--abbrev-ref", "--branches").splitlines()
-
 class lazy(object):
+  """Lazily-calculated class and object properties."""
   def __init__(self, func):
     self._func = func
     self.__name__ = func.__name__
@@ -48,6 +47,7 @@ class lazy(object):
     if 'result' in vars(self):
       del vars(self)['result']
 
+RefLog = namedtuple('RefLine', 'timestamp hash')
 Commit = namedtuple("Commit", "hash subject merges")
 
 class Branch(object):
@@ -68,38 +68,67 @@ class Branch(object):
 
   @lazy
   def ALL(cls):
-    return frozenset(cls(b) for b in getBranches())
+    names = revparse("--abbrev-ref", "--branches").splitlines()
+    return frozenset(cls(name) for name in names)
+
+  @lazy
+  def REMOTES(cls):
+    names = revparse("--abbrev-ref", "--remotes").splitlines()
+    locals = frozenset(b.name for b in cls.ALL)
+    return frozenset(cls(name) for name in names if name.split('/', 1)[-1] in locals)
+
+  @lazy
+  def _REF_LOGS(cls):
+    raw = {}
+    for b in cls.ALL:
+      try:
+        raw[b] = sh.git.log("-g", "%s@{now}" % b.name, "--date=raw", "--format=%gd %H",
+                            _tty_out=False, _iter=True)
+      except sh.ErrorReturnCode:
+        raw[b] = ()
+
+    ref_logs = {}
+    rx = re.compile("@[{](\\d+) .*[}] (\\w+)")
+    for b in raw:
+      ref_logs[b] = branch_logs = []
+      for l in raw[b]:
+        m = rx.search(l)
+        if m:
+          branch_logs.append(RefLog(int(m.group(1)), m.group(2)))
+    return ref_logs
+
+  @lazy
+  def _COMMITS(cls):
+    raw = {}
+    for b in chain(cls.ALL, cls.REMOTES):
+      raw[b] = sh.git.log("--first-parent", "--format=%H:%P:%s", b.name,
+                          _iter=True, _tty_out=False)
+    commits = {}
+    for b in raw:
+      commits[b] = [Commit(h, s.strip(), m.split(" ")[1:]) for h, m, s in
+                    (l.split(":", 2) for l in raw[b])]
+    return commits
 
   @lazy
   def REV_MAP(cls):
     # We want the last branch that pointed to a particular reference,
     # unless two or more branches currently point to it, in which case
     # we want the one that has pointed to it the longest.
-    rx = re.compile("@[{](\\d+) .*[}] (\\w+)")
     rev_map = defaultdict(list)
     for b in cls.ALL:
-      try:
-        ref_log = tuple(sh.git.log("-g", "%s@{now}" % b.name, "--date=raw", "--format=%gd %H",
-                                   _tty_out=False, _iter=True))
-      except sh.ErrorReturnCode:
-        ref_log = []
       last_timestamp = None
       first_rev = None
-      for l in ref_log:
-        m = rx.search(l)
-        if m:
-          ts = int(m.group(1))
-          rev = m.group(2)
-          if last_timestamp is None:
-            first_rev = rev
-          else:
-            if first_rev is not None:
-              rev_map[first_rev].append((ts, b))
-              first_rev = None
-            rev_map[rev].append((-last_timestamp, b))
-          last_timestamp = ts
+      for ref in cls._REF_LOGS[b]:
+        if last_timestamp is None:
+          first_rev = ref.hash
+        else:
+          if first_rev is not None:
+            rev_map[first_rev].append((ref.timestamp, b))
+            first_rev = None
+          rev_map[ref.hash].append((-last_timestamp, b))
+        last_timestamp = ref.timestamp
       if first_rev is not None:
-        rev_map[first_rev].append((ts, b))
+        rev_map[first_rev].append((ref.timestamp, b))
     return { k : max(v)[1] for k, v in rev_map.iteritems() }
 
   def __new__(cls, name):
@@ -124,30 +153,20 @@ class Branch(object):
     the best claim to "owning" it.
 
     """
-    rx = re.compile("@[{](\\d+) .*[}] (\\w+)")
-    try:
-      ref_log = tuple(sh.git.log("-g", "%s@{now}" % self.name, "--date=raw", "--format=%gd %H",
-                                 _tty_out=False, _iter=True))
-    except sh.ErrorReturnCode:
-      return {}
     rev_map = {}
     last_timestamp = None
     first_rev = None
-    for l in ref_log:
-      m = rx.search(l)
-      if m:
-        ts = int(m.group(1))
-        rev = m.group(2)
-        if last_timestamp is None:
-          first_rev = rev
-        else:
-          if first_rev is not None:
-            rev_map[first_rev] = ts
-            first_rev = None
-          rev_map[rev] = -last_timestamp
-        last_timestamp = ts
+    for ref in type(self)._REF_LOGS.get(self, ()):
+      if last_timestamp is None:
+        first_rev = ref.hash
+      else:
+        if first_rev is not None:
+          rev_map[first_rev] = ref.timestamp
+          first_rev = None
+        rev_map[ref.hash] = -last_timestamp
+      last_timestamp = ref.timestamp
     if first_rev is not None:
-      rev_map[first_rev] = ts
+      rev_map[first_rev] = ref.timestamp
     return rev_map
 
   @lazy
@@ -157,10 +176,7 @@ class Branch(object):
     Merges will only list commit hashes, not branches.
 
     """
-    log = sh.git.log("--first-parent", "--format=%H:%P:%s", self.name,
-                     _iter=True, _tty_out=False)
-    return [Commit(h, s.strip(), m.split(" ")[1:]) for h, m, s in
-            (l.split(":", 2) for l in log)]
+    return type(self)._COMMITS[self]
 
   @lazy
   def upstream(self):

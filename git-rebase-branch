@@ -19,7 +19,7 @@ from collections import namedtuple
 from docopt import docopt
 from itertools import takewhile
 from shutil import copyfile
-from utils import revparse, getBranches, getUpstreamBranch, Branch
+from utils import revparse, getUpstreamBranch, Branch
 
 rebase_branch = "git rebase-branch"
 
@@ -177,7 +177,6 @@ def resetAction(arguments):
   branchesFile = getBranchesFile()
   with open(branchesFile, "a") as f:
     f.write("/ %s\n" % (branch or "/"))
-  # assert branch is None or branch in getBranches() or branch in commits
   assert branch is not None  # Buggy
   if branch is None:
     sh.git("update-ref", "-d", "HEAD")
@@ -192,10 +191,11 @@ def resetAction(arguments):
 def mergeAction(arguments):
   print arguments
   branches = arguments['<branch>']
+  committedBranches = frozenset(b.name for b in Branch.ALL)
   commits = getUncommittedBranches()
   mergeArgs = []
   for branch in branches:
-    assert branch in getBranches() or branch in commits
+    assert branch in committedBranches or branch in commits
     if branch in commits:
       mergeArgs.append(commits[branch])
     else:
