@@ -47,7 +47,7 @@ class lazy(object):
     if 'result' in vars(self):
       del vars(self)['result']
 
-RefLog = namedtuple('RefLine', 'timestamp hash')
+RefLine = namedtuple('RefLine', 'timestamp hash')
 Commit = namedtuple("Commit", "hash subject merges")
 
 class Branch(object):
@@ -94,7 +94,7 @@ class Branch(object):
       for l in raw[b]:
         m = rx.search(l)
         if m:
-          branch_logs.append(RefLog(int(m.group(1)), m.group(2)))
+          branch_logs.append(RefLine(int(m.group(1)), m.group(2)))
     return ref_logs
 
   @lazy
@@ -147,27 +147,7 @@ class Branch(object):
 
   @lazy
   def _refLog(self):
-    """
-    Returns a map of commit hash to reference weight for this branch. If several
-    branches have referenced a commit, the one with the highest weight has
-    the best claim to "owning" it.
-
-    """
-    rev_map = {}
-    last_timestamp = None
-    first_rev = None
-    for ref in type(self)._REF_LOGS.get(self, ()):
-      if last_timestamp is None:
-        first_rev = ref.hash
-      else:
-        if first_rev is not None:
-          rev_map[first_rev] = ref.timestamp
-          first_rev = None
-        rev_map[ref.hash] = -last_timestamp
-      last_timestamp = ref.timestamp
-    if first_rev is not None:
-      rev_map[first_rev] = ref.timestamp
-    return rev_map
+    return type(self)._REF_LOGS.get(self, ())
 
   @lazy
   def allCommits(self):
@@ -195,10 +175,10 @@ class Branch(object):
     if self.upstream is None:
       return None
     commitHashes = set(c.hash for c in self.allCommits)
-    firstUpstreamReference = first(h for h in self.upstream._refLog if h in commitHashes)
+    firstUpstreamReference = first(h.hash for h in self.upstream._refLog if h.hash in commitHashes)
     upstreamCommitHashes = set(c.hash for c in self.upstream.allCommits)
     return first(c for c in self.allCommits
-                 if c.hash in upstreamCommitHashes or c == firstUpstreamReference)
+                 if c.hash in upstreamCommitHashes or c.hash == firstUpstreamReference)
 
   @lazy
   def commits(self):
