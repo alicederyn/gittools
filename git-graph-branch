@@ -252,7 +252,7 @@ def printGraph(color, BranchIterator, clearScreen = False):
     if lastIndex >= len(awaitingParents):
       setColour(colour)
       if missingParents:
-        if firstIndex == lastIndex:
+        if firstIndex == lastIndex and len(b.parents) == 1:
           sys.stdout.write('┌')
         else:
           sys.stdout.write('┬')
