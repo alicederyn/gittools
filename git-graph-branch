@@ -5,6 +5,9 @@
 Symbols:
     🔷   This branch has a remote of the same name
     🔶   This branch is out of sync with a remote of the same name
+    ⌛   A CI build is in progress for this branch
+    💚   A CI build has succeeded for this branch
+    🔥   A CI build has failed for this branch
 
 Options:
     -h --help               Show this screen.
@@ -26,6 +29,7 @@ from datetime import datetime, timedelta
 from docopt import docopt
 from fnmatch import fnmatch
 from itertools import chain, cycle, product
+from travis import TravisClient
 from utils import Branch, revparse
 
 def getBranches():
@@ -174,6 +178,7 @@ def printGraph(color, BranchIterator, clearScreen = False):
     colourseq = cycle(('38;5;%dm' % i for i in alternatingColourIds()))
   else:
     colourseq = None
+  travis = TravisClient()
 
   if clearScreen:
     sys.stdout.write('\x1b[0;0H')
@@ -272,6 +277,16 @@ def printGraph(color, BranchIterator, clearScreen = False):
         sys.stdout.write('🔶 ')
       else:
         sys.stdout.write('🔷 ')
+    ciStatuses = travis.ciStatus(b).values()
+    if ciStatuses:
+      sys.stdout.write(' ')
+      for status in ciStatuses:
+        if status == 'orange':
+          sys.stdout.write('⌛ ')
+        elif status == 'green':
+          sys.stdout.write('💚 ')
+        else:
+          sys.stdout.write('🔥 ')
     if b.unmerged > 0:
       sys.stdout.write(' ')
       sys.stdout.write('\x1b[1;31m')
