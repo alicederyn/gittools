@@ -227,7 +227,7 @@ def printGraph(color, BranchIterator, clearScreen = False):
         sys.stdout.write('│')
       elif i <= lastIndex:
         if i not in parentIndices:
-          sys.stdout.write('╪')
+          sys.stdout.write('│')
         elif i == firstIndex:
           sys.stdout.write('├')
         else:
@@ -239,7 +239,10 @@ def printGraph(color, BranchIterator, clearScreen = False):
       if i < firstIndex:
         sys.stdout.write(' ')
       elif i < lastIndex:
-        sys.stdout.write('─')
+        if a is not None and a != b and (i not in parentIndices or (i + 1) not in parentIndices):
+          sys.stdout.write('┄')  # Untested, may not work
+        else:
+          sys.stdout.write('─')
       elif i == lastIndex:
         sys.stdout.write(arrowhead)
       else:
