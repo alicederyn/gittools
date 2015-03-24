@@ -53,7 +53,7 @@ def allChildren(branch):
   return children
 
 def getRebaseArgs(root, execCmd, onto):
-  args = ("git", "rebase", "-i", "--root", root.name)
+  args = ("git", "rebase", "-i", root.name, root.name)
 
   scriptLines = []
   todo = [root]
