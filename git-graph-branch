@@ -15,7 +15,6 @@ Options:
     --wait-to-merge=<ms>    Waits for this long for the git repo to settle after a change
                             [default: 100].
     --max-update-freq=<ms>  Will not update more frequently than this [default: 500].
-    --color                 Colorizes branches
     --profile               Profiles the app
     --order-algo=<algo>     Algorithm to select the next branch to unblock.
                             One of: simple, priority [default: priority]
@@ -28,6 +27,7 @@ from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from docopt import docopt
 from fnmatch import fnmatch
+from layout import Layout
 from itertools import chain, cycle, product
 from travis import TravisClient
 from utils import Branch, revparse
@@ -143,26 +143,7 @@ class SimpleBranchIterator(object):
 def localParents(b, remotes):
   return [p for p in b.parents if not p.name in remotes]
 
-def getColour(branch, remotes, colours, colourseq):
-  if branch is None or colourseq is None:
-    return 0
-  if branch not in colours:
-    if len(branch.children) == 0:
-      if len(localParents(branch, remotes)) == 0:
-        colours[branch] = None
-      else:
-        colours[branch] = colourseq.next()
-    elif len(branch.children) == 1:
-      colours[branch] = getColour(iter(branch.children).next(), colours, colourseq)
-    else:
-      colours[branch] = colourseq.next()
-  return colours[branch]
-
-def setColour(colour):
-  if colour:
-    sys.stdout.write('\x1b[%s' % colour)
-
-def printGraph(color, BranchIterator, clearScreen = False):
+def printGraph(BranchIterator, clearScreen = False):
   branches = getBranches()
   remotes = getRemotes()
   remoteHashes = dict(zip(remotes, revparse(*remotes).splitlines()))
@@ -173,102 +154,13 @@ def printGraph(color, BranchIterator, clearScreen = False):
   done = set()
   awaitingParents = []
   firstChilds = []
-  colours = {}
-  if color:
-    colourseq = cycle(('38;5;%dm' % i for i in alternatingColourIds()))
-  else:
-    colourseq = None
   travis = TravisClient()
 
   if clearScreen:
     sys.stdout.write('\x1b[0;0H')
 
-  for b in BranchIterator(BranchBlockers(branches)):
-    assert b not in done
-    done.add(b)
-    colour = getColour(b, remotes, colours, colourseq)
-    try:
-      index = awaitingParents.index(b)
-    except ValueError:
-      index = len(awaitingParents)
-    parentIndices = [i for i, p in enumerate(awaitingParents) if p in localParents(b, remotes)]
-    missingParents = [p for p in localParents(b, remotes)
-                      if p not in awaitingParents and p not in done]
-    if missingParents:
-      parentIndices.append(index)
-      if len(missingParents) > 1:
-        parentIndices.append(len(awaitingParents) + len(missingParents) - 2)
-      arrowhead = '◇'
-    else:
-      arrowhead = '▶'
-    firstIndex = min([index] + parentIndices)
-    lastIndex = max([index] + parentIndices)
-    sys.stdout.write(' ')
-    for i, a in enumerate(awaitingParents):
-      if a and sum(1 for c in a.children if c not in done) == 1:
-        aColour = getColour(firstChilds[i], remotes, colours, colourseq)
-      else:
-        aColour = getColour(a, remotes, colours, colourseq)
-      setColour(aColour)
-      if a is None:
-        if firstIndex < i <= lastIndex:
-          sys.stdout.write('─')
-        else:
-          sys.stdout.write(' ')
-      elif a == b:
-        if not missingParents:
-          if i <= firstIndex and i < lastIndex:
-            sys.stdout.write('╰')
-          else:
-            sys.stdout.write('┴')
-        else:
-          sys.stdout.write('├')
-      elif i < firstIndex:
-        sys.stdout.write('│')
-      elif i <= lastIndex:
-        if i not in parentIndices:
-          sys.stdout.write('│')
-        elif i == firstIndex:
-          sys.stdout.write('├')
-        else:
-          sys.stdout.write('┼')
-      else:
-        sys.stdout.write('│')
-      sys.stdout.write('\x1b[0m')
-      setColour(colour)
-      if i < firstIndex:
-        sys.stdout.write(' ')
-      elif i < lastIndex:
-        if a is not None and a != b and (i not in parentIndices or (i + 1) not in parentIndices):
-          sys.stdout.write('┄')  # Untested, may not work
-        else:
-          sys.stdout.write('─')
-      elif i == lastIndex:
-        sys.stdout.write(arrowhead)
-      else:
-        sys.stdout.write(' ')
-      sys.stdout.write('\x1b[0m')
-    newColumns = missingParents if index == len(awaitingParents) else missingParents[1:]
-    for a in newColumns[:-1]:
-      aColour = getColour(a, remotes, colours, colourseq)
-      setColour(aColour)
-      if a == firstIndex:
-        sys.stdout.write('┌─')
-      else:
-        sys.stdout.write('┬─')
-      sys.stdout.write('\x1b[0m')
-    if lastIndex >= len(awaitingParents):
-      setColour(colour)
-      if missingParents:
-        if firstIndex == lastIndex and len(b.parents) == 1:
-          sys.stdout.write('┌')
-        else:
-          sys.stdout.write('┬')
-      else:
-        sys.stdout.write('─')
-      sys.stdout.write(arrowhead)
-      sys.stdout.write('\x1b[0m')
-    sys.stdout.write('  ')
+  layout = Layout(tuple(BranchIterator(BranchBlockers(branches))))
+  def branchLabel(b):
     if b == Branch.HEAD:
       sys.stdout.write('\x1b[1;35m')
     sys.stdout.write(b.name)
@@ -300,24 +192,8 @@ def printGraph(color, BranchIterator, clearScreen = False):
       sys.stdout.write('\x1b[0m')
     if clearScreen:
       sys.stdout.write('\x1b[K')
-    sys.stdout.write('\n')
-    if missingParents:
-      if index != len(awaitingParents):
-        awaitingParents[index] = missingParents[0]
-        firstChilds[index] = b
-        awaitingParents.extend(missingParents[1:])
-        firstChilds.extend([b] * (len(missingParents) - 1))
-      else:
-        awaitingParents.extend(missingParents)
-        firstChilds.extend([b] * len(missingParents))
-    elif index == len(awaitingParents):
-      pass
-    else:
-      awaitingParents[index] = None
-      while awaitingParents and awaitingParents[-1] is None:
-        awaitingParents.pop()
-        firstChilds.pop()
-    assert len(set(p for p in awaitingParents if p)) == len([p for p in awaitingParents if p])
+    return ""
+  layout.write_to(sys.stdout, branchLabel)
   if clearScreen:
     sys.stdout.write('\x1b[J')
     sys.stdout.flush()
@@ -395,7 +271,6 @@ def getPrintGraphArgs(options):
       sys.stderr.write('%s not a valid choice for %s (must be one of: %s)'
                        % (options[name], name, ", ".join(algorithms.keys())))
   return {
-    'color'          : options['--color'],
     'BranchIterator' : select('--order-algo',   simple   = SimpleBranchIterator,
                                                 priority = PriorityBranchIterator),
   }

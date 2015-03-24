@@ -3,7 +3,7 @@ from collections import defaultdict, namedtuple
 from datetime import datetime
 from itertools import chain
 
-__all__ = ['revparse', 'getUpstreamBranch', 'Branch', 'Commit']
+__all__ = ['first', 'lazy', 'revparse', 'getUpstreamBranch', 'Branch', 'Commit']
 
 def first(collection, default=None):
   return next(iter(collection), default)
