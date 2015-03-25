@@ -1,0 +1,101 @@
+        ◇┐  issue1.generics
+        ◇┤  assert.no.warnings
+        ◇┤  qualified.name
+        ◇┤  excerpt
+        ◇┤  issue24.nested.classes.last
+        ◇┤  code.generator.refactor
+   ╭─┬─┬▶┤  develop
+ ╭┄│┄│┄│▶┤  issue27.dogfood
+◇┤ │ │ │ │  issue2.nulls
+ ├┄│┄│┄│▶┘  cleanup
+ ├┄│┄│▶┘  issue29-wildcards-in-optional-types
+ ├┄│▶┘  cleaner.test.logs
+ ├▶┘  issue4.idiomatic.java7
+ ├──▶ footnotes
+◇┘  master
+◇╴  gh-pages
+
+◇┐  issue1.generics
+◇┤  assert.no.warnings
+◇┤  qualified.name
+◇┤  excerpt
+◇┤  issue24.nested.classes.last
+◇┤  code.generator.refactor
+ ├◀┬─┬─┐  develop
+ ├◀│┄│┄│┄┐  issue27.dogfood
+◇┤ │ │ │ │  issue2.nulls
+ ├▶┘ │ │ │  cleanup
+ ├──▶┘ │ │  issue29-wildcards-in-optional-types
+ ├────▶┘ │  cleaner.test.logs
+ ├──────▶┘  issue4.idiomatic.java7
+ ├─▶ footnotes
+◇┘  master
+─▶  gh-pages
+
+        ◇┐  issue1.generics
+        ◇┤  assert.no.warnings
+        ◇┤  qualified.name
+        ◇┤  excerpt
+        ◇┤  issue24.nested.classes.last
+        ◇┤  code.generator.refactor
+   ┌─┬─┬▶┤  develop
+ ┌▶┤ │ │ │  issue27.dogfood
+◇┤ │ │ │ │  issue2.nulls
+ ├▶┘ │ │ │  cleanup
+ ├──▶┘ │ │  issue29-wildcards-in-optional-types
+ ├────▶┘ │  cleaner.test.logs
+ ├──────▶┘  issue4.idiomatic.java7
+ ├─▶ footnotes
+◇┘  master
+─▶  gh-pages
+
+         ┬  issue1.generics
+         ┼  assert.no.warnings
+         ┼  qualified.name
+         ┼  excerpt
+         ┼  issue24.nested.classes.last
+         ┼  code.generator.refactor
+   ┌─┬─┬▶┤  develop
+ ┌┄│┄│┄│▶┤  issue27.dogfood
+ ┼ │ │ │ │  issue2.nulls
+ ├┄│┄│┄│▶┘  cleanup
+ ├┄│┄│▶┘  issue29-wildcards-in-optional-types
+ ├┄│▶┘  cleaner.test.logs
+ ├▶┘  issue4.idiomatic.java7
+ ├▶╴ footnotes
+ ┘  master
+ ╴  gh-pages
+
+ ┬  issue1.generics
+ ┼  assert.no.warnings
+ ┼  qualified.name
+ ┼  excerpt
+ ┼  issue24.nested.classes.last
+ ┼  code.generator.refactor
+ ├◀┬─┬─┐  develop
+ ├◀│┄│┄│┄┐  issue27.dogfood
+ ┼ │ │ │ │  issue2.nulls
+ ├▶┘ │ │ │  cleanup
+ ├──▶┘ │ │  issue29-wildcards-in-optional-types
+ ├────▶┘ │  cleaner.test.logs
+ ├──────▶┘  issue4.idiomatic.java7
+ ├▶╴ footnotes
+ ┘  master
+ ╴  gh-pages
+         ┬  issue1.generics
+         ┼  assert.no.warnings
+         ┼  qualified.name
+         ┼  excerpt
+         ┼  issue24.nested.classes.last
+         ┼  code.generator.refactor
+   ┌─┬─┬▶┤  develop
+ ┌▶┤ │ │ │  issue27.dogfood
+ ┼ │ │ │ │  issue2.nulls
+ ├▶┘ │ │ │  cleanup
+ ├──▶┘ │ │  issue29-wildcards-in-optional-types
+ ├────▶┘ │  cleaner.test.logs
+ ├──────▶┘  issue4.idiomatic.java7
+ ├▶╴ footnotes
+ ┘  master
+ ╴  gh-pages
+
