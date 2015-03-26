@@ -86,6 +86,8 @@ class Layout(object):
           file.write(u'◇')
         else:
           file.write(u'▶')
+      else:
+        file.write(u' ')
       file.write('  ')
       file.write(str(label(b.data)))
       file.write('\n')
