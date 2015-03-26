@@ -18,15 +18,17 @@ class Layout(object):
   def _grid(self):
     columns = {}
     active = []
+    reached = set()
     grid = [()]
     for b in reversed(self._branches):
+      reached.add(b.data)
       if not b.parents:
         idx = len(active)
       else:
         for p in b.parents:
           assert p in set(x.data for x in self._branches)
         idx = max(columns[p] for p in b.parents)
-        if len(active[idx].children) != 1:
+        if not set(active[idx].children) <= reached:
           idx = len(active)
       columns[b.data] = idx
       for p in b.parents:

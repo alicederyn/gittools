@@ -20,15 +20,15 @@ class TestBranchMerge(object):
 
   def setUp(self):
     self.expected = dedent(u"""\
-                   ┌◇  issue1.generics
-                   ├◇  assert.no.warnings
-                   ├◇  qualified.name
-                   ├◇  excerpt
-                   ├◇  issue24.nested.classes.last
-                   ├◇  code.generator.refactor
-           ┌─┬─┬───┼▶  develop
-           │ │ │ ┌─┼▶  issue27.dogfood
-         ┌┄│┄│┄│┄│┄┴▶  issue2.nulls
+                 ┌◇  issue1.generics
+                 ├◇  assert.no.warnings
+                 ├◇  qualified.name
+                 ├◇  excerpt
+                 ├◇  issue24.nested.classes.last
+                 ├◇  code.generator.refactor
+           ┌─┬─┬─┼▶  develop
+         ┌┄│┄│┄│┄┼▶  issue27.dogfood
+         ├◇│ │ │ │   issue2.nulls
          ├┄│┄│┄│┄┴▶  cleanup
          ├┄│┄│┄┴▶  issue29-wildcards-in-optional-types
          ├┄│┄┴▶  cleaner.test.logs
@@ -60,14 +60,14 @@ class TestBranchMerge(object):
                       gh_pages ]
     self.grid = [
         ( ),
-        ( None,   None,   None,      None,    None,    no_warnings    ),
-        ( None,   None,   None,      None,    None,    qualified_name ),
-        ( None,   None,   None,      None,    None,    excerpt        ),
-        ( None,   None,   None,      None,    None,    issue24        ),
-        ( None,   None,   None,      None,    None,    refactor       ),
-        ( None,   None,   None,      None,    None,    develop        ),
-        ( None,   issue4, test_logs, issue29, None,    issue27        ),
-        ( None,   issue4, test_logs, issue29, cleanup, issue2         ),
+        ( None,   None,   None,      None,    no_warnings    ),
+        ( None,   None,   None,      None,    qualified_name ),
+        ( None,   None,   None,      None,    excerpt        ),
+        ( None,   None,   None,      None,    issue24        ),
+        ( None,   None,   None,      None,    refactor       ),
+        ( None,   None,   None,      None,    develop        ),
+        ( None,   issue4, test_logs, issue29, issue27        ),
+        ( issue2, issue4, test_logs, issue29, cleanup ),
         ( master, issue4, test_logs, issue29, cleanup ),
         ( master, issue4, test_logs, issue29 ),
         ( master, issue4, test_logs ),
@@ -92,13 +92,13 @@ class TestBranchMerge(object):
     output = dedent(file.getvalue())
     assert output == self.expected
 
-class TestBranchMerge(object):
+class TestSimpleMerge(object):
 
   def setUp(self):
     self.expected = dedent(u"""\
            ┌◇  feature/freebuilder
-           ├─┬──▶  workshop
-         ┌┄│┄┴▶  feature/deadlock.transfercontroller
+         ┌─┼──▶  workshop
+         ├◇│   feature/deadlock.transfercontroller
          ├─┴▶  feature/auto.value
          ┴▶  develop
         """)
@@ -112,9 +112,9 @@ class TestBranchMerge(object):
     self.branches = [ freebuilder, workshop, deadlock, autovalue, develop ]
     self.grid = [
         ( ),
-        ( None,    autovalue),
-        ( None,    autovalue, deadlock ),
-        ( develop, autovalue ),
+        ( None,     autovalue),
+        ( deadlock, autovalue ),
+        ( develop,  autovalue ),
         ( develop, ),
         ( ),
     ]
@@ -123,7 +123,8 @@ class TestBranchMerge(object):
     self.setUp()
     layout = Layout(self.branches)
     grid = layout._grid()
-    assert grid == self.grid
+    assert ([[b.name if b else "-" for b in r] for r in grid]
+            == [[b.name if b else "-" for b in r] for r in self.grid])
 
   def test_output(self):
     self.setUp()
