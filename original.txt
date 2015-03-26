@@ -23,8 +23,8 @@
  ├◇  excerpt
  ├◇  issue24.nested.classes.last
  ├◇  code.generator.refactor
-◀┼─┬─┬─┐   develop
-◀┼┄│┄│┄│┄┐   issue27.dogfood
+◀┼───┬─┬─┐   develop
+◀┼─┐ │ │ │   issue27.dogfood
  ├◇│ │ │ │   issue2.nulls
  ├─┴▶│ │ │   cleanup
  ├───┴▶│ │   issue29-wildcards-in-optional-types
