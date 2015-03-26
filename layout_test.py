@@ -92,3 +92,45 @@ class TestBranchMerge(object):
     output = dedent(file.getvalue())
     assert output == self.expected
 
+class TestBranchMerge(object):
+
+  def setUp(self):
+    self.expected = dedent(u"""\
+           ┌◇  feature/freebuilder
+           ├─┬──▶  workshop
+         ┌┄│┄┴▶  feature/deadlock.transfercontroller
+         ├─┴▶  feature/auto.value
+         ┴▶  develop
+        """)
+
+    develop = Node("develop")
+    autovalue = Node("feature/auto.value", develop)
+    deadlock = Node("feature/deadlock.transfercontroller", develop)
+    workshop = Node("workshop", autovalue, deadlock)
+    freebuilder = Node("feature/freebuilder", autovalue)
+
+    self.branches = [ freebuilder, workshop, deadlock, autovalue, develop ]
+    self.grid = [
+        ( ),
+        ( None,    autovalue),
+        ( None,    autovalue, deadlock ),
+        ( develop, autovalue ),
+        ( develop, ),
+        ( ),
+    ]
+
+  def test_grid(self):
+    self.setUp()
+    layout = Layout(self.branches)
+    grid = layout._grid()
+    assert grid == self.grid
+
+  def test_output(self):
+    self.setUp()
+    layout = Layout(self.branches)
+    file = StringIO()
+    layout.write_to(file)
+    output = dedent(file.getvalue())
+    assert output == self.expected
+
+
