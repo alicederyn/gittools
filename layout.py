@@ -49,7 +49,7 @@ class Layout(object):
     active = []
     for lineUp, b, lineDown in zip(grid[:-1], self._branches, grid[1:]):
       if not lineUp and not lineDown:
-        file.write(u" ─▶  ")
+        file.write(u" ╴  ")
         file.write(label(b.data))
         file.write("\n")
         continue
@@ -66,30 +66,31 @@ class Layout(object):
         down = lineDown[i] if i < len(lineDown) else None
         through = (up not in (None, b.data)) and (down is not None and down not in b.parents)
         left = (not through and firstIdx < i <= lastIdx) or (up and not down)
-        right = not through and firstIdx <= i <= lastIdx
+        if firstIdx <= i < lastIdx:
+          right = not through
+        elif i == lastIdx:
+          right = firstIdx == lastIdx and len(b.parents) == 1
+        else:
+          right = False
         char = Layout.BOX_CHARS[(1 if up else 0) + (2 if right else 0)
                               + (4 if down else 0) + (8 if left else 0)]
-        if firstIdx < i <= lastIdx:
+        if firstIdx < i < lastIdx:
           if fading or through:
             file.write(Layout.FADING)
           else:
             file.write(Layout.BOX_CHARS[10])
           fading = through
+        elif firstIdx < i == lastIdx:
+          file.write(u'▶')
         elif i == lastIdx + 1:
           if firstIdx == lastIdx and len(b.parents) == 1:
             file.write(u'◇')
-          else:
-            file.write(u'▶')
         else:
           file.write(' ')
         file.write(char)
       if lastIdx + 1 >= max(len(lineUp), len(lineDown)):
         if firstIdx == lastIdx and len(b.parents) == 1:
           file.write(u'◇')
-        else:
-          file.write(u'▶')
-      else:
-        file.write(u' ')
       file.write('  ')
       file.write(str(label(b.data)))
       file.write('\n')

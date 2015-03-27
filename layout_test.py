@@ -26,16 +26,16 @@ class TestBranchMerge(object):
                  ├◇  excerpt
                  ├◇  issue24.nested.classes.last
                  ├◇  code.generator.refactor
-           ┌─┬─┬─┼▶  develop
-         ┌┄│┄│┄│┄┼▶  issue27.dogfood
-         ├◇│ │ │ │   issue2.nulls
-         ├┄│┄│┄│┄┴▶  cleanup
-         ├┄│┄│┄┴▶  issue29-wildcards-in-optional-types
-         ├┄│┄┴▶  cleaner.test.logs
-         ├─┴▶  issue4.idiomatic.java7
-         ├──▶  footnotes
-         ┴▶  master
-         ─▶  gh-pages
+           ┌─┬─┬▶┤  develop
+         ┌┄│┄│┄│▶┤  issue27.dogfood
+         ├◇│ │ │ │  issue2.nulls
+         ├┄│┄│┄│▶┘  cleanup
+         ├┄│┄│▶┘  issue29-wildcards-in-optional-types
+         ├┄│▶┘  cleaner.test.logs
+         ├▶┘  issue4.idiomatic.java7
+         ├▶╴  footnotes
+         ┘  master
+         ╴  gh-pages
         """)
 
     gh_pages = Node("gh-pages")
@@ -97,10 +97,10 @@ class TestSimpleMerge(object):
   def setUp(self):
     self.expected = dedent(u"""\
            ┌◇  feature/freebuilder
-         ┌─┼──▶  workshop
-         ├◇│   feature/deadlock.transfercontroller
-         ├─┴▶  feature/auto.value
-         ┴▶  develop
+         ┌─┼▶╴  workshop
+         ├◇│  feature/deadlock.transfercontroller
+         ├▶┘  feature/auto.value
+         ┘  develop
         """)
 
     develop = Node("develop")
