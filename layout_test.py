@@ -92,7 +92,7 @@ class TestBranchMerge(object):
     output = dedent(file.getvalue())
     assert output == self.expected
 
-class TestSimpleMerge(object):
+class TestSimpleMergeWithCrossover(object):
 
   def setUp(self):
     self.expected = dedent(u"""\
@@ -134,4 +134,45 @@ class TestSimpleMerge(object):
     output = dedent(file.getvalue())
     assert output == self.expected
 
+class TestSimpleMergeNoCrossover(object):
+
+  def setUp(self):
+    self.expected = dedent(u"""\
+         ┌▶┐  workshop
+         ├▶│  feature/freebuilder
+         ├◇│  feature/auto.value
+         ├▶┘  feature/deadlock.transfercontroller
+         ┘  develop
+        """)
+
+    develop = Node("develop")
+    autovalue = Node("feature/auto.value", develop)
+    deadlock = Node("feature/deadlock.transfercontroller", develop)
+    freebuilder = Node("feature/freebuilder", autovalue)
+    workshop = Node("workshop", autovalue, deadlock)
+
+    self.branches = [ workshop, freebuilder, autovalue, deadlock, develop ]
+    self.grid = [
+        ( ),
+        ( autovalue, deadlock ),
+        ( autovalue, deadlock ),
+        ( develop,   deadlock ),
+        ( develop, ),
+        ( ),
+    ]
+
+  def test_grid(self):
+    self.setUp()
+    layout = Layout(self.branches)
+    grid = layout._grid()
+    assert ([[b.name if b else "-" for b in r] for r in grid]
+            == [[b.name if b else "-" for b in r] for r in self.grid])
+
+  def test_output(self):
+    self.setUp()
+    layout = Layout(self.branches)
+    file = StringIO()
+    layout.write_to(file)
+    output = dedent(file.getvalue())
+    assert output == self.expected
 
