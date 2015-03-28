@@ -4,94 +4,135 @@ from utils import first
 
 Node = namedtuple("Node", "parents children data")
 
-class Layout(object):
+class Row(object):
+  u"""Representation of a single row of a DAG.
+
+  self.at: the column containing the row's node
+  self.up: columns with up edges this row's node is connected to other nodes on up the DAG
+  self.down: columns with down edges this row's node is connected to
+  self.through: columns with edges this row's node is not connected to
+
+  repr(self): Pythonic representation of this row, e.g. Row(at = 1, up={0,1}, down={0})
+  unicode(self): Unicode-art representation of this row, e.g. ├▶┘
+  """
+
   BOX_CHARS = [ u" ", u"╵", u"╶", u"└", u"╷", u"│", u"┌", u"├",
                 u"╴", u"┘", u"─", u"┴", u"┐", u"┤", u"┬", u"┼" ]
-  FADING = u"┄"
 
-  def __init__(self, branches):
-    branchesSet = frozenset(branches)
-    self._branches = tuple(Node(parents  = frozenset(b.parents) & branchesSet,
-                                children = frozenset(b.children) & branchesSet,
-                                data = b) for b in branches)
+  def __init__(self, at, up = (), down = (), through = ()):
+    self.at = at
+    self.up = frozenset(up)
+    self.down = frozenset(down)
+    self.through = frozenset(through)
+    self._min = min({self.at} | self.up | self.down)
+    self._max = max({self.at} | self.up | self.down)
+    self._cols = max({self._max} | self.through) + 1
+    assert 0 <= self.at
+    assert all(idx >= 0 for idx in self.up)
+    assert all(idx >= 0 for idx in self.down)
+    assert all(idx >= 0 for idx in self.through)
+    assert not any(idx in self.up or idx in self.down for idx in self.through)
 
-  def _grid(self):
-    columns = {}
-    active = []
-    reached = set()
-    grid = [()]
-    for b in reversed(self._branches):
-      reached.add(b.data)
-      if not b.parents:
-        idx = len(active)
+  def __eq__(self, other):
+    if not isinstance(other, Row):
+      return False
+    return (self.at == other.at and self.up == other.up
+            and self.down == other.down and self.through == other.through)
+
+  def __repr__(self):
+    r = "%s(at = %d" % (type(self).__name__, self.at)
+    if self.up:
+      r += ", up = {%s}" % ','.join(map(str, sorted(self.up)))
+    if self.down:
+      r += ", down = {%s}" % ','.join(map(str, sorted(self.down)))
+    if self.through:
+      r += ", through = {%s}" % ','.join(map(str, sorted(self.through)))
+    r += ")"
+    return r
+
+  def _first_codepoint(self, column):
+    if column in self.through:
+      up = down = True
+      left = right = False
+    else:
+      up = column in self.up
+      down = column in self.down
+      left = self._min < column <= self._max
+      right = self._min <= column < self._max
+      if self._min == column == self._max:
+        if column in self.down:
+          right = True
+        else:
+          left = True
+    return Row.BOX_CHARS[(1 if up else 0) + (2 if right else 0)
+                         + (4 if down else 0) + (8 if left else 0)]
+
+  def _second_codepoint(self, column):
+    if column < self._cols - 1:
+      if self._min <= column < self._max:
+        if column + 1 == self.at:
+          return u'▶'
+        elif column == self.at:
+          return u'◀'
+        elif column in self.through or column + 1 in self.through:
+          return u'┄'
+        else:
+          return u'─'
       else:
-        for p in b.parents:
-          assert p in set(x.data for x in self._branches)
-        idx = max(columns[p] for p in b.parents)
-        if not set(active[idx].children) <= reached:
-          idx = len(active)
-      columns[b.data] = idx
-      for p in b.parents:
-        if all(c in columns for c in p.children):
-          active[columns[p]] = None
-      if b.children:
-        while len(active) <= idx:
-          active.append(None)
-        active[idx] = b.data
-      while active and active[-1] is None:
-        active.pop()
-      grid.append(tuple(active))
-    grid.reverse()
-    return grid
+        if column == self.at and self.down == {self.at} and self.up <= {self.at}:
+          return u'◇'
+        else:
+          return u' '
+    elif column == self.at and self.down == {self.at} and self.up <= {self.at}: 
+      return u'◇'
+    else:
+      return u''
 
-  def write_to(self, file, label = lambda b : b.name):
-    grid = self._grid()
-    active = []
-    for lineUp, b, lineDown in zip(grid[:-1], self._branches, grid[1:]):
-      if not lineUp and not lineDown:
-        file.write(u" ╴  ")
-        file.write(label(b.data))
-        file.write("\n")
-        continue
-      indices = [i for i, u in enumerate(lineUp) if u == b.data]
-      parentIndices = [i for i, d in enumerate(lineDown) if d in b.parents]
-      if lineUp and not indices:
-        indices = [ max(parentIndices) + 1 ]
-      assert not b.parents or all(p in lineDown for p in b.parents)
-      firstIdx = min(indices + parentIndices)
-      lastIdx = max(indices + parentIndices)
-      fading = False
-      for i in xrange(max(len(lineUp), len(lineDown), lastIdx + 1)):
-        up = lineUp[i] if i < len(lineUp) else None
-        down = lineDown[i] if i < len(lineDown) else None
-        through = (up not in (None, b.data)) and (down is not None and down not in b.parents)
-        left = (not through and firstIdx < i <= lastIdx) or (up and not down)
-        if firstIdx <= i < lastIdx:
-          right = not through
-        elif i == lastIdx:
-          right = firstIdx == lastIdx and len(b.parents) == 1
-        else:
-          right = False
-        char = Layout.BOX_CHARS[(1 if up else 0) + (2 if right else 0)
-                              + (4 if down else 0) + (8 if left else 0)]
-        if firstIdx < i < lastIdx:
-          if fading or through:
-            file.write(Layout.FADING)
-          else:
-            file.write(Layout.BOX_CHARS[10])
-          fading = through
-        elif firstIdx < i == lastIdx:
-          file.write(u'▶')
-        elif i == lastIdx + 1:
-          if firstIdx == lastIdx and len(b.parents) == 1:
-            file.write(u'◇')
-        else:
-          file.write(' ')
-        file.write(char)
-      if lastIdx + 1 >= max(len(lineUp), len(lineDown)):
-        if firstIdx == lastIdx and len(b.parents) == 1:
-          file.write(u'◇')
-      file.write('  ')
-      file.write(str(label(b.data)))
-      file.write('\n')
+  def __unicode__(self):
+    return u''.join(self._first_codepoint(i) + self._second_codepoint(i)
+                    for i in xrange(self._cols))
+
+def layout(branches):
+  # Sanitize data
+  branchesSet = frozenset(branches)
+  branches = tuple(Node(parents  = frozenset(b.parents) & branchesSet,
+                        children = frozenset(b.children) & branchesSet,
+                        data = b) for b in branches)
+
+  columns = {}
+  active = []
+  reached = set()
+  grid = []
+  for b in reversed(branches):
+    reached.add(b.data)
+    if not b.parents:
+      at = len(active)
+    else:
+      at = max(columns[p] for p in b.parents)
+      if not set(active[at].children) <= reached:
+        at = len(active)
+    columns[b.data] = at
+    down = { columns[p] for p in b.parents}
+    for p in b.parents:
+      if all(c in columns for c in p.children):
+        active[columns[p]] = None
+    through = { idx for idx, p in enumerate(active) if p and idx != at and idx not in down }
+    if b.children:
+      while len(active) <= at:
+        active.append(None)
+      active[at] = b.data
+    up = { idx for idx, p in enumerate(active) if p and idx not in through }
+    while active and active[-1] is None:
+      active.pop()
+    grid.append(Row(at, up = up, down = down, through = through))
+  grid.reverse()
+  return grid
+
+def layout_to(file, branches, label = lambda b : b.name):
+  grid = layout(branches)
+  for b, row in zip(branches, grid):
+    file.write(unicode(row))
+    file.write('  ')
+    file.write(label(b))
+    file.write('\n')
 

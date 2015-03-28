@@ -27,7 +27,7 @@ from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from docopt import docopt
 from fnmatch import fnmatch
-from layout import Layout
+from layout import layout_to
 from itertools import chain, cycle, product
 from travis import TravisClient
 from utils import Branch, revparse
@@ -159,7 +159,6 @@ def printGraph(BranchIterator, clearScreen = False):
   if clearScreen:
     sys.stdout.write('\x1b[0;0H')
 
-  layout = Layout(tuple(BranchIterator(BranchBlockers(branches))))
   def branchLabel(b):
     if b == Branch.HEAD:
       sys.stdout.write('\x1b[1;35m')
@@ -193,7 +192,8 @@ def printGraph(BranchIterator, clearScreen = False):
     if clearScreen:
       sys.stdout.write('\x1b[K')
     return ""
-  layout.write_to(sys.stdout, branchLabel)
+
+  layout_to(sys.stdout, tuple(BranchIterator(BranchBlockers(branches))), branchLabel)
   if clearScreen:
     sys.stdout.write('\x1b[J')
     sys.stdout.flush()

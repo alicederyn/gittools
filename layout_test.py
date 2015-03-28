@@ -1,6 +1,6 @@
 # coding=utf-8
 import sys
-from layout import Layout
+from layout import Row, layout, layout_to
 from StringIO import StringIO
 from textwrap import dedent
 
@@ -16,27 +16,60 @@ class Node(object):
     return "Node(%s, parents=%s, children=%s)" % (
         self.name, [p.name for p in self.parents], [c.name for c in self.children])
 
+def test_row_repr():
+  assert repr(Row(2)) == "Row(at = 2)"
+  assert repr(Row(2, up = xrange(3))) == "Row(at = 2, up = {0,1,2})"
+  assert (repr(Row(0, down = (1,), through = (2, 4)))
+          == "Row(at = 0, down = {1}, through = {2,4})")
+
+def test_row_unicode():
+  assert unicode(Row(2)) == u'    ╴'
+  assert unicode(Row(0, up={0}, down={0})) == u'├◇'
+  assert unicode(Row(0, down={0})) == u'┌◇'
+  assert unicode(Row(0, up={0})) == u'┘'
+  assert unicode(Row(1, up={0}, down={0})) == u'├▶╴'
+  assert unicode(Row(4, up={4}, down={1,2,3,4})) == u'  ┌─┬─┬▶┤'
+  assert unicode(Row(4, up={4}, down={0,4}, through={1,2,3})) == u'┌┄│┄│┄│▶┤'
+  assert unicode(Row(0, up={0}, down={0}, through={1,2,3,4})) == u'├◇│ │ │ │'
+  assert unicode(Row(4, up={4}, down={1,3,4}, through={2,5})) == u'  ┌┄│┄┬▶┤ │'
+  assert unicode(Row(2, up={0,1,2,3,4}, down={0,1,2,3,4})) == u'├─┼▶┼◀┼─┤'
+
+def test_row_equality():
+  assert Row(2) == Row(2)
+  assert Row(2) != Row(2, up = {4})
+
+def test_row_max_min_cols():
+  assert Row(2)._min == 2
+  assert Row(2)._max == 2
+  assert Row(2)._cols == 3
+  assert Row(2, up={3,4}, down={0,1})._min == 0
+  assert Row(2, up={3,4}, down={0,1})._max == 4
+  assert Row(2, up={3,4}, down={0,1})._cols == 5
+  assert Row(2, through={1,5})._min == 2
+  assert Row(2, through={1,5})._max == 2
+  assert Row(2, through={1,5})._cols == 6
+
 class TestBranchMerge(object):
 
   def setUp(self):
     self.expected = dedent(u"""\
-                 ┌◇  issue1.generics
-                 ├◇  assert.no.warnings
-                 ├◇  qualified.name
-                 ├◇  excerpt
-                 ├◇  issue24.nested.classes.last
-                 ├◇  code.generator.refactor
-           ┌─┬─┬▶┤  develop
-         ┌┄│┄│┄│▶┤  issue27.dogfood
-         ├◇│ │ │ │  issue2.nulls
-         ├┄│┄│┄│▶┘  cleanup
-         ├┄│┄│▶┘  issue29-wildcards-in-optional-types
-         ├┄│▶┘  cleaner.test.logs
-         ├▶┘  issue4.idiomatic.java7
-         ├▶╴  footnotes
-         ┘  master
-         ╴  gh-pages
-        """)
+                ┌◇  issue1.generics
+                ├◇  assert.no.warnings
+                ├◇  qualified.name
+                ├◇  excerpt
+                ├◇  issue24.nested.classes.last
+                ├◇  code.generator.refactor
+          ┌─┬─┬▶┤  develop
+        ┌┄│┄│┄│▶┤  issue27.dogfood
+        ├◇│ │ │ │  issue2.nulls
+        ├┄│┄│┄│▶┘  cleanup
+        ├┄│┄│▶┘  issue29-wildcards-in-optional-types
+        ├┄│▶┘  cleaner.test.logs
+        ├▶┘  issue4.idiomatic.java7
+        ├▶╴  footnotes
+        ┘  master
+        ╴  gh-pages
+    """)
 
     gh_pages = Node("gh-pages")
     master = Node("master")
@@ -59,36 +92,33 @@ class TestBranchMerge(object):
                       issue27, issue2, cleanup, issue29, test_logs, issue4, footnotes, master,
                       gh_pages ]
     self.grid = [
-        ( ),
-        ( None,   None,   None,      None,    no_warnings    ),
-        ( None,   None,   None,      None,    qualified_name ),
-        ( None,   None,   None,      None,    excerpt        ),
-        ( None,   None,   None,      None,    issue24        ),
-        ( None,   None,   None,      None,    refactor       ),
-        ( None,   None,   None,      None,    develop        ),
-        ( None,   issue4, test_logs, issue29, issue27        ),
-        ( issue2, issue4, test_logs, issue29, cleanup ),
-        ( master, issue4, test_logs, issue29, cleanup ),
-        ( master, issue4, test_logs, issue29 ),
-        ( master, issue4, test_logs ),
-        ( master, issue4 ),
-        ( master, ),
-        ( master, ),
-        ( ),
-        ( ),
+        Row(at = 4, down = [4]),
+        Row(at = 4, up = [4], down = [4]),
+        Row(at = 4, up = [4], down = [4]),
+        Row(at = 4, up = [4], down = [4]),
+        Row(at = 4, up = [4], down = [4]),
+        Row(at = 4, up = [4], down = [4]),
+        Row(at = 4, up = [4], down = [1,2,3,4]),
+        Row(at = 4, up = [4], down = [0,4], through = [1,2,3]),
+        Row(at = 0, up = [0], down = [0], through = [1,2,3,4]),
+        Row(at = 4, up = [0,4], down = [0], through = [1,2,3]),
+        Row(at = 3, up = [0,3], down = [0], through = [1,2]),
+        Row(at = 2, up = [0,2], down = [0], through = [1]),
+        Row(at = 1, up = [0,1], down = [0]),
+        Row(at = 1, up = [0], down = [0]),
+        Row(at = 0, up = [0]),
+        Row(at = 0),
     ]
 
   def test_grid(self):
     self.setUp()
-    layout = Layout(self.branches)
-    grid = layout._grid()
+    grid = layout(self.branches)
     assert grid == self.grid
 
   def test_output(self):
     self.setUp()
-    layout = Layout(self.branches)
     file = StringIO()
-    layout.write_to(file)
+    layout_to(file, self.branches)
     output = dedent(file.getvalue())
     assert output == self.expected
 
@@ -96,12 +126,12 @@ class TestSimpleMergeWithCrossover(object):
 
   def setUp(self):
     self.expected = dedent(u"""\
-           ┌◇  feature/freebuilder
-         ┌─┼▶╴  workshop
-         ├◇│  feature/deadlock.transfercontroller
-         ├▶┘  feature/auto.value
-         ┘  develop
-        """)
+          ┌◇  feature/freebuilder
+        ┌─┼▶╴  workshop
+        ├◇│  feature/deadlock.transfercontroller
+        ├▶┘  feature/auto.value
+        ┘  develop
+    """)
 
     develop = Node("develop")
     autovalue = Node("feature/auto.value", develop)
@@ -111,26 +141,22 @@ class TestSimpleMergeWithCrossover(object):
 
     self.branches = [ freebuilder, workshop, deadlock, autovalue, develop ]
     self.grid = [
-        ( ),
-        ( None,     autovalue),
-        ( deadlock, autovalue ),
-        ( develop,  autovalue ),
-        ( develop, ),
-        ( ),
+        Row(at = 1, down = [1]),
+        Row(at = 2, up = [1], down = [0,1]),
+        Row(at = 0, up = [0], down = [0], through = [1]),
+        Row(at = 1, up = [0,1], down = [0]),
+        Row(at = 0, up = [0]),
     ]
 
   def test_grid(self):
     self.setUp()
-    layout = Layout(self.branches)
-    grid = layout._grid()
-    assert ([[b.name if b else "-" for b in r] for r in grid]
-            == [[b.name if b else "-" for b in r] for r in self.grid])
+    grid = layout(self.branches)
+    assert grid == self.grid
 
   def test_output(self):
     self.setUp()
-    layout = Layout(self.branches)
     file = StringIO()
-    layout.write_to(file)
+    layout_to(file, self.branches)
     output = dedent(file.getvalue())
     assert output == self.expected
 
@@ -138,41 +164,110 @@ class TestSimpleMergeNoCrossover(object):
 
   def setUp(self):
     self.expected = dedent(u"""\
-         ┌▶┐  workshop
-         ├▶│  feature/freebuilder
-         ├◇│  feature/auto.value
-         ├▶┘  feature/deadlock.transfercontroller
-         ┘  develop
-        """)
+        ┌▶┐  workshop
+        ├┄│▶╴  feature/freebuilder
+        ├◇│  feature/auto.value
+        ├▶┘  feature/deadlock.transfercontroller
+        ┘  develop
+    """)
 
     develop = Node("develop")
     autovalue = Node("feature/auto.value", develop)
     deadlock = Node("feature/deadlock.transfercontroller", develop)
     freebuilder = Node("feature/freebuilder", autovalue)
     workshop = Node("workshop", autovalue, deadlock)
-
     self.branches = [ workshop, freebuilder, autovalue, deadlock, develop ]
+
     self.grid = [
-        ( ),
-        ( autovalue, deadlock ),
-        ( autovalue, deadlock ),
-        ( develop,   deadlock ),
-        ( develop, ),
-        ( ),
+        Row(at = 1, down = [0,1]),
+        Row(at = 2, up = [0], down = [0], through = [1]),
+        Row(at = 0, up = [0], down = [0], through = [1]),
+        Row(at = 1, up = [0,1], down = [0]),
+        Row(at = 0, up = [0]),
     ]
 
   def test_grid(self):
     self.setUp()
-    layout = Layout(self.branches)
-    grid = layout._grid()
-    assert ([[b.name if b else "-" for b in r] for r in grid]
-            == [[b.name if b else "-" for b in r] for r in self.grid])
+    grid = layout(self.branches)
+    assert grid == self.grid
 
   def test_output(self):
     self.setUp()
-    layout = Layout(self.branches)
     file = StringIO()
-    layout.write_to(file)
+    layout_to(file, self.branches)
     output = dedent(file.getvalue())
     assert output == self.expected
+
+def test_branch_merge_to_head():
+  grid = [
+      Row(at = 0, down = [0]),
+      Row(at = 0, up = [0], down = [0]),
+      Row(at = 0, up = [0], down = [0]),
+      Row(at = 0, up = [0], down = [0]),
+      Row(at = 0, up = [0], down = [0]),
+      Row(at = 0, up = [0], down = [0]),
+      Row(at = 0, up = [0], down = [0,1,2,3]),
+      Row(at = 0, up = [0], down = [0,4], through = [1,2,3]),
+      Row(at = 0, up = [0], down = [0], through = [1,2,3,4]),
+      Row(at = 4, up = [0,4], down = [0], through = [1,2,3]),
+      Row(at = 3, up = [0,3], down = [0], through = [1,2]),
+      Row(at = 2, up = [0,2], down = [0], through = [1]),
+      Row(at = 1, up = [0,1], down = [0]),
+      Row(at = 1, up = [0], down = [0]),
+      Row(at = 0, up = [0]),
+      Row(at = 0),
+  ]
+  output = ''.join(unicode(row) + '\n' for row in grid)
+  assert output == dedent(u"""\
+      ┌◇
+      ├◇
+      ├◇
+      ├◇
+      ├◇
+      ├◇
+      ├◀┬─┬─┐
+      ├◀│┄│┄│┄┐
+      ├◇│ │ │ │
+      ├┄│┄│┄│▶┘
+      ├┄│┄│▶┘
+      ├┄│▶┘
+      ├▶┘
+      ├▶╴
+      ┘
+      ╴
+  """)
+
+def test_remerge_to_head():
+  grid = [
+      Row(at = 1, down = [1]),
+      Row(at = 0, up = [1], down = [0,1]),
+      Row(at = 0, up = [0], down = [0], through=[1]),
+      Row(at = 1, up = [0,1], down = [0]),
+      Row(at = 0, up = [0]),
+  ]
+  output = ''.join(unicode(row) + '\n' for row in grid)
+  assert output == dedent(u"""\
+        ┌◇
+      ┌◀┤
+      ├◇│
+      ├▶┘
+      ┘
+  """)
+
+def test_simple_merge_to_head_with_crossunder():
+  grid = [
+      Row(at = 0, down = [0,1]),
+      Row(at = 2, up = [0], down = [0], through=[1]),
+      Row(at = 0, up = [0], down = [0], through=[1]),
+      Row(at = 1, up = [0,1], down = [0]),
+      Row(at = 0, up = [0]),
+  ]
+  output = ''.join(unicode(row) + '\n' for row in grid)
+  assert output == dedent(u"""\
+      ┌◀┐
+      ├┄│▶╴
+      ├◇│
+      ├▶┘
+      ┘
+  """)
 
