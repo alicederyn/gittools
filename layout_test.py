@@ -24,13 +24,13 @@ def test_row_repr():
 
 def test_row_unicode():
   assert unicode(Row(2)) == u'    ╴'
-  assert unicode(Row(0, up={0}, down={0})) == u'├◇'
-  assert unicode(Row(0, down={0})) == u'┌◇'
+  assert unicode(Row(0, up={0}, down={0})) == u'┼'
+  assert unicode(Row(0, down={0})) == u'┬'
   assert unicode(Row(0, up={0})) == u'┘'
   assert unicode(Row(1, up={0}, down={0})) == u'├▶╴'
   assert unicode(Row(4, up={4}, down={1,2,3,4})) == u'  ┌─┬─┬▶┤'
   assert unicode(Row(4, up={4}, down={0,4}, through={1,2,3})) == u'┌┄│┄│┄│▶┤'
-  assert unicode(Row(0, up={0}, down={0}, through={1,2,3,4})) == u'├◇│ │ │ │'
+  assert unicode(Row(0, up={0}, down={0}, through={1,2,3,4})) == u'┼ │ │ │ │'
   assert unicode(Row(4, up={4}, down={1,3,4}, through={2,5})) == u'  ┌┄│┄┬▶┤ │'
   assert unicode(Row(2, up={0,1,2,3,4}, down={0,1,2,3,4})) == u'├─┼▶┼◀┼─┤'
 
@@ -53,15 +53,15 @@ class TestBranchMerge(object):
 
   def setUp(self):
     self.expected = dedent(u"""\
-                ┌◇  issue1.generics
-                ├◇  assert.no.warnings
-                ├◇  qualified.name
-                ├◇  excerpt
-                ├◇  issue24.nested.classes.last
-                ├◇  code.generator.refactor
+                ┬  issue1.generics
+                ┼  assert.no.warnings
+                ┼  qualified.name
+                ┼  excerpt
+                ┼  issue24.nested.classes.last
+                ┼  code.generator.refactor
           ┌─┬─┬▶┤  develop
         ┌┄│┄│┄│▶┤  issue27.dogfood
-        ├◇│ │ │ │  issue2.nulls
+        ┼ │ │ │ │  issue2.nulls
         ├┄│┄│┄│▶┘  cleanup
         ├┄│┄│▶┘  issue29-wildcards-in-optional-types
         ├┄│▶┘  cleaner.test.logs
@@ -126,9 +126,9 @@ class TestSimpleMergeWithCrossover(object):
 
   def setUp(self):
     self.expected = dedent(u"""\
-          ┌◇  feature/freebuilder
+          ┬  feature/freebuilder
         ┌─┼▶╴  workshop
-        ├◇│  feature/deadlock.transfercontroller
+        ┼ │  feature/deadlock.transfercontroller
         ├▶┘  feature/auto.value
         ┘  develop
     """)
@@ -166,7 +166,7 @@ class TestSimpleMergeNoCrossover(object):
     self.expected = dedent(u"""\
         ┌▶┐  workshop
         ├┄│▶╴  feature/freebuilder
-        ├◇│  feature/auto.value
+        ┼ │  feature/auto.value
         ├▶┘  feature/deadlock.transfercontroller
         ┘  develop
     """)
@@ -219,15 +219,15 @@ def test_branch_merge_to_head():
   ]
   output = ''.join(unicode(row) + '\n' for row in grid)
   assert output == dedent(u"""\
-      ┌◇
-      ├◇
-      ├◇
-      ├◇
-      ├◇
-      ├◇
+      ┬
+      ┼
+      ┼
+      ┼
+      ┼
+      ┼
       ├◀┬─┬─┐
       ├◀│┄│┄│┄┐
-      ├◇│ │ │ │
+      ┼ │ │ │ │
       ├┄│┄│┄│▶┘
       ├┄│┄│▶┘
       ├┄│▶┘
@@ -247,9 +247,9 @@ def test_remerge_to_head():
   ]
   output = ''.join(unicode(row) + '\n' for row in grid)
   assert output == dedent(u"""\
-        ┌◇
+        ┬
       ┌◀┤
-      ├◇│
+      ┼ │
       ├▶┘
       ┘
   """)
@@ -266,7 +266,7 @@ def test_simple_merge_to_head_with_crossunder():
   assert output == dedent(u"""\
       ┌◀┐
       ├┄│▶╴
-      ├◇│
+      ┼ │
       ├▶┘
       ┘
   """)
