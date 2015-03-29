@@ -2,8 +2,6 @@
 from collections import namedtuple
 from utils import first
 
-Node = namedtuple("Node", "parents children data")
-
 class Row(object):
   u"""Representation of a single row of a DAG.
 
@@ -88,32 +86,32 @@ class Row(object):
 def layout(branches):
   # Sanitize data
   branchesSet = frozenset(branches)
-  branches = tuple(Node(parents  = frozenset(b.parents) & branchesSet,
-                        children = frozenset(b.children) & branchesSet,
-                        data = b) for b in branches)
+  children = { b : frozenset(c for c in b.children if c in branchesSet) for b in branches }
+  parents = { b : frozenset(p for p in b.parents if p in branchesSet) for b in branches }
 
   columns = {}
   active = []
   reached = set()
   grid = []
   for b in reversed(branches):
-    reached.add(b.data)
-    if not b.parents:
+    reached.add(b)
+
+    if not parents[b]:
       at = len(active)
     else:
-      at = max(columns[p] for p in b.parents)
-      if not set(active[at].children) <= reached:
+      at = max(columns[p] for p in parents[b])
+      if not children[active[at]] <= reached:
         at = len(active)
-    columns[b.data] = at
-    down = { columns[p] for p in b.parents}
-    for p in b.parents:
-      if all(c in columns for c in p.children):
+    columns[b] = at
+    down = { columns[p] for p in parents[b]}
+    for p in parents[b]:
+      if all(c in columns for c in children[p]):
         active[columns[p]] = None
     through = { idx for idx, p in enumerate(active) if p and idx != at and idx not in down }
-    if b.children:
+    if children[b]:
       while len(active) <= at:
         active.append(None)
-      active[at] = b.data
+      active[at] = b
     up = { idx for idx, p in enumerate(active) if p and idx not in through }
     while active and active[-1] is None:
       active.pop()
