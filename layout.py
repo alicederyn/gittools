@@ -96,12 +96,8 @@ def layout(branches):
   for b in reversed(branches):
     reached.add(b)
 
-    if not parents[b]:
-      at = len(active)
-    else:
-      at = max(columns[p] for p in parents[b])
-      if not children[active[at]] <= reached:
-        at = len(active)
+    finished_parents = [p for p in parents[b] if children[p] <= reached]
+    at = min(columns[p] for p in finished_parents) if finished_parents else len(active)
     columns[b] = at
     down = { columns[p] for p in parents[b]}
     for p in parents[b]:

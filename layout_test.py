@@ -71,14 +71,14 @@ def test_layout_multi_branch_merge():
                issue27, issue2, cleanup, issue29, test_logs, issue4, footnotes, master,
                gh_pages ]
   assert layout(branches) == [
-      Row(at = 4, down = [4]),
-      Row(at = 4, up = [4], down = [4]),
-      Row(at = 4, up = [4], down = [4]),
-      Row(at = 4, up = [4], down = [4]),
-      Row(at = 4, up = [4], down = [4]),
-      Row(at = 4, up = [4], down = [4]),
-      Row(at = 4, up = [4], down = [1,2,3,4]),
-      Row(at = 4, up = [4], down = [0,4], through = [1,2,3]),
+      Row(at = 0, down = [0]),
+      Row(at = 0, up = [0], down = [0]),
+      Row(at = 0, up = [0], down = [0]),
+      Row(at = 0, up = [0], down = [0]),
+      Row(at = 0, up = [0], down = [0]),
+      Row(at = 0, up = [0], down = [0]),
+      Row(at = 0, up = [0], down = [0,1,2,3]),
+      Row(at = 0, up = [0], down = [0,4], through = [1,2,3]),
       Row(at = 0, up = [0], down = [0], through = [1,2,3,4]),
       Row(at = 4, up = [0,4], down = [0], through = [1,2,3]),
       Row(at = 3, up = [0,3], down = [0], through = [1,2]),
@@ -99,7 +99,7 @@ def test_layout_simple_merge_with_crossover():
   branches = [ freebuilder, workshop, deadlock, autovalue, develop ]
   assert layout(branches) == [
       Row(at = 1, down = [1]),
-      Row(at = 2, up = [1], down = [0,1]),
+      Row(at = 0, up = [1], down = [0,1]),
       Row(at = 0, up = [0], down = [0], through = [1]),
       Row(at = 1, up = [0,1], down = [0]),
       Row(at = 0, up = [0]),
@@ -114,7 +114,7 @@ def test_layout_simple_merge_no_crossover():
 
   branches = [ workshop, freebuilder, autovalue, deadlock, develop ]
   assert layout(branches) == [
-      Row(at = 1, down = [0,1]),
+      Row(at = 0, down = [0,1]),
       Row(at = 2, up = [0], down = [0], through = [1]),
       Row(at = 0, up = [0], down = [0], through = [1]),
       Row(at = 1, up = [0,1], down = [0]),
