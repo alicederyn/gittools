@@ -57,12 +57,11 @@ class Row(object):
     else:
       up = column in self.up
       down = column in self.down
-      left = self._min < column <= self._max
-      right = self._min <= column < self._max
       if self._min == column == self._max:
-        left = True
-        if column in self.down:
-          right = True
+        left = right = True
+      else:
+        left = self._min < column <= self._max
+        right = self._min <= column < self._max
     return Row.BOX_CHARS[(1 if up else 0) + (2 if right else 0)
                          + (4 if down else 0) + (8 if left else 0)]
 

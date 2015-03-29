@@ -23,10 +23,10 @@ def test_row_repr():
           == "Row(at = 0, down = {1}, through = {2,4})")
 
 def test_row_unicode():
-  assert unicode(Row(2)) == u'    ╴'
+  assert unicode(Row(2)) == u'    ─'
   assert unicode(Row(0, up={0}, down={0})) == u'┼'
   assert unicode(Row(0, down={0})) == u'┬'
-  assert unicode(Row(0, up={0})) == u'┘'
+  assert unicode(Row(0, up={0})) == u'┴'
   assert unicode(Row(1, up={0}, down={0})) == u'├▶╴'
   assert unicode(Row(4, up={4}, down={1,2,3,4})) == u'  ┌─┬─┬▶┤'
   assert unicode(Row(4, up={4}, down={0,4}, through={1,2,3})) == u'┌┄│┄│┄│▶┤'
@@ -67,8 +67,8 @@ class TestBranchMerge(object):
         ├┄│▶┘  cleaner.test.logs
         ├▶┘  issue4.idiomatic.java7
         ├▶╴  footnotes
-        ┘  master
-        ╴  gh-pages
+        ┴  master
+        ─  gh-pages
     """)
 
     gh_pages = Node("gh-pages")
@@ -130,7 +130,7 @@ class TestSimpleMergeWithCrossover(object):
         ┌─┼▶╴  workshop
         ┼ │  feature/deadlock.transfercontroller
         ├▶┘  feature/auto.value
-        ┘  develop
+        ┴  develop
     """)
 
     develop = Node("develop")
@@ -168,7 +168,7 @@ class TestSimpleMergeNoCrossover(object):
         ├┄│▶╴  feature/freebuilder
         ┼ │  feature/auto.value
         ├▶┘  feature/deadlock.transfercontroller
-        ┘  develop
+        ┴  develop
     """)
 
     develop = Node("develop")
@@ -233,8 +233,8 @@ def test_branch_merge_to_head():
       ├┄│▶┘
       ├▶┘
       ├▶╴
-      ┘
-      ╴
+      ┴
+      ─
   """)
 
 def test_remerge_to_head():
@@ -251,7 +251,7 @@ def test_remerge_to_head():
       ┌◀┤
       ┼ │
       ├▶┘
-      ┘
+      ┴
   """)
 
 def test_simple_merge_to_head_with_crossunder():
@@ -268,6 +268,6 @@ def test_simple_merge_to_head_with_crossunder():
       ├┄│▶╴
       ┼ │
       ├▶┘
-      ┘
+      ┴
   """)
 
