@@ -81,15 +81,15 @@ class Bamboo(object):
     status = defaultdict(dict)
     def fetchStatus(todo):
       branchName, remote, server, commit = todo
-      r = self._get(server, 'result/byChangeset/%s' % (commit.hash,))
       try:
+        r = self._get(server, 'result/byChangeset/%s' % (commit.hash,))
         resultsByPlan = {}
         for result in r['results']['result']:
           resultsByPlan.setdefault(result['plan']['shortKey'], Bamboo.STATUS_MAP[result['state']])
         for plan, color in resultsByPlan.iteritems():
           if remote not in self._plans or plan in self._plans[remote]:
             status[branchName]['%s-%s' % (remote, plan)] = color
-      except LookupError:
+      except (IOError, LookupError):
         pass
 
     pool = ThreadPool(20)
