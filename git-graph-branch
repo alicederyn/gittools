@@ -160,11 +160,18 @@ def printGraph(BranchIterator, clearScreen = False):
   if clearScreen:
     sys.stdout.write('\x1b[0;0H')
 
+  if sys.stdout.isatty():
+    def control(chars):
+      sys.stdout.write(chars)
+  else:
+    def control(chars):
+      pass
+
   def branchLabel(b):
     if b == Branch.HEAD:
-      sys.stdout.write('\x1b[1;35m')
+      control('\x1b[1;35m')
     sys.stdout.write(b.name)
-    sys.stdout.write('\x1b[0m')
+    control('\x1b[0m')
     if b.name in localsWithRemotes:
       sys.stdout.write(' ')
       version = b.allCommits[0].hash
@@ -184,19 +191,19 @@ def printGraph(BranchIterator, clearScreen = False):
           sys.stdout.write('🔥 ')
     if b.unmerged > 0:
       sys.stdout.write(' ')
-      sys.stdout.write('\x1b[1;31m')
+      control('\x1b[1;31m')
       if b.unmerged <= 20:
         sys.stdout.write('%s unmerged' % unichr(0x245F + b.unmerged))
       else:
         sys.stdout.write(" [%d unmerged]" % b.unmerged)
-      sys.stdout.write('\x1b[0m')
+      control('\x1b[0m')
     if clearScreen:
-      sys.stdout.write('\x1b[K')
+      control('\x1b[K')
     return ""
 
   layout_to(sys.stdout, tuple(BranchIterator(BranchBlockers(branches))), branchLabel)
   if clearScreen:
-    sys.stdout.write('\x1b[J')
+    control('\x1b[J')
     sys.stdout.flush()
 
 def fractionalSeconds(delta):
@@ -280,6 +287,7 @@ if __name__ == '__main__':
   options = docopt(__doc__)
   printGraphArgs = getPrintGraphArgs(options)
   if options['--watch']:
+    assert sys.stdout.isatty()
     try:
       def action():
         try:
