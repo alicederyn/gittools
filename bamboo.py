@@ -11,8 +11,10 @@ class Bamboo(object):
   }
   STATUS_MAP = {
     'Successful' : 'green',
+    'Unknown' : 'orange',
     'Failed' : 'red',
   }
+  PLANS = {'ADV', 'ADVETE'}
 
   @lazy
   def _githubToken(self):
@@ -29,6 +31,20 @@ class Bamboo(object):
         name = key.split('.', 1)[-1].rsplit('.', 1)[0]
         remotes[name] = server
       return remotes
+    except sh.ErrorReturnCode_1:
+      return {}
+
+  @lazy
+  def _plans(self):
+    """Plans to report on, keyed by remote name."""
+    try:
+      raw = sh.git.config('--get-regexp', 'bamboo\..*\.plans', _tty_out=False, _iter=True)
+      allPlans = {}
+      for l in raw:
+        key, plans = l.strip().split(' ', 1)
+        name = key.split('.', 1)[-1].rsplit('.', 1)[0]
+        allPlans[name] = set(plan.strip() for plan in plans.split(','))
+      return allPlans
     except sh.ErrorReturnCode_1:
       return {}
 
@@ -65,10 +81,14 @@ class Bamboo(object):
     status = defaultdict(dict)
     def fetchStatus(todo):
       branchName, remote, server, commit = todo
-      r = self._get(server, 'result/byChangeset/%s?max-result=1' % (commit.hash,))
+      r = self._get(server, 'result/byChangeset/%s' % (commit.hash,))
       try:
-        statusText = r['results']['result'][0]['state']
-        status[branchName][remote] = Bamboo.STATUS_MAP[statusText]
+        resultsByPlan = {}
+        for result in r['results']['result']:
+          resultsByPlan.setdefault(result['plan']['shortKey'], Bamboo.STATUS_MAP[result['state']])
+        for plan, color in resultsByPlan.iteritems():
+          if remote not in self._plans or plan in self._plans[remote]:
+            status[branchName]['%s-%s' % (remote, plan)] = color
       except LookupError:
         pass
 
