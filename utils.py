@@ -159,6 +159,11 @@ class Branch(object):
     return type(self)._COMMITS[self]
 
   @lazy
+  def latestCommit(self):
+    """The latest commit made to this branch."""
+    return self.allCommits[0]
+
+  @lazy
   def upstream(self):
     """The branch set as this branch's 'upstream', or None if none is set."""
     upstreamName = getUpstreamBranch(self.name)

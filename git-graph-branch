@@ -22,6 +22,7 @@ Options:
 # Observed bugs:
 #  1) git branch -f BRANCH commit  -- not noticed by --watch
 import heapq, os.path, sh, sys, threading, time, traceback, watchdog.events, watchdog.observers
+from bamboo import Bamboo
 from bisect import bisect_left
 from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
@@ -154,7 +155,7 @@ def printGraph(BranchIterator, clearScreen = False):
   done = set()
   awaitingParents = []
   firstChilds = []
-  travis = TravisClient()
+  ciTools = (TravisClient(), Bamboo())
 
   if clearScreen:
     sys.stdout.write('\x1b[0;0H')
@@ -171,7 +172,7 @@ def printGraph(BranchIterator, clearScreen = False):
         sys.stdout.write('🔶 ')
       else:
         sys.stdout.write('🔷 ')
-    ciStatuses = travis.ciStatus(b).values()
+    ciStatuses = { status for tool in ciTools for status in tool.ciStatus(b).values() }
     if ciStatuses:
       sys.stdout.write(' ')
       for status in ciStatuses:
