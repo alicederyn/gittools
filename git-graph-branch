@@ -3,7 +3,7 @@
 """Usage: git-graph-branch [options]
 
 Symbols:
-    🔷   This branch has a remote of the same name
+    🔷   This branch is in sync with a remote of the same name
     🔶   This branch is out of sync with a remote of the same name
     ⌛   A CI build is in progress for this branch
     💚   A CI build has succeeded for this branch
