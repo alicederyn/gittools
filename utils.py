@@ -226,10 +226,12 @@ class Branch(object):
   @lazy
   def unmerged(self):
     """The number of parent commits that have not been pulled to this branch."""
-    unmerged = 0
-    for parent in self.parents:
-      log = sh.git.log("--format=tformat:.", "%s..%s" % (self.name, parent.name),
-                       _tty_out=False, _iter=True)
-      unmerged += sum(1 for l in log)
-    return unmerged
+    allCommits = set(c.hash for c in self.allCommits)
+    parentCommits = set()
+    for p in self.parents:
+      for c in p.allCommits:
+        if c.hash in allCommits:
+          break
+        parentCommits.add(c.hash)
+    return len(parentCommits)
 
