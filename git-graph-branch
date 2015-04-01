@@ -18,6 +18,7 @@ Options:
     --profile               Profiles the app
     --order-algo=<algo>     Algorithm to select the next branch to unblock.
                             One of: simple, priority [default: priority]
+    --no-ci                 Do not display continuous integration status indicators
 """
 # Observed bugs:
 #  1) git branch -f BRANCH commit  -- not noticed by --watch
@@ -144,7 +145,7 @@ class SimpleBranchIterator(object):
 def localParents(b, remotes):
   return [p for p in b.parents if not p.name in remotes]
 
-def printGraph(BranchIterator, clearScreen = False):
+def printGraph(BranchIterator, clearScreen = False, ci = True):
   branches = getBranches()
   remotes = getRemotes()
   remoteHashes = dict(zip(remotes, revparse(*remotes).splitlines()))
@@ -155,7 +156,7 @@ def printGraph(BranchIterator, clearScreen = False):
   done = set()
   awaitingParents = []
   firstChilds = []
-  ciTools = (Stash(), TravisClient())
+  ciTools = (Stash(), TravisClient()) if ci else ()
 
   if clearScreen:
     sys.stdout.write('\x1b[0;0H')
@@ -281,6 +282,7 @@ def getPrintGraphArgs(options):
   return {
     'BranchIterator' : select('--order-algo',   simple   = SimpleBranchIterator,
                                                 priority = PriorityBranchIterator),
+    'ci' : not options['--no-ci']
   }
 
 if __name__ == '__main__':
