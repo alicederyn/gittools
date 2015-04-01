@@ -117,6 +117,40 @@ class Sh(object):
 def first(collection, default=None):
   return next(iter(collection), default)
 
+class LazyListIterator(object):
+  def __init__(self, iterator, values):
+    self._iterator = iterator
+    self._values = values
+    self.pos = 0
+
+  def __iter__(self):
+    return self
+
+  def next(self):
+    try:
+      v = self._values[self.pos]
+    except IndexError:
+      v = self._iterator.next()
+      self._values.append(v)
+    self.pos += 1
+    return v
+
+class LazyList(object):
+  def __init__(self, iterator):
+    self._iterator = iterator
+    self._values = []
+
+  def __iter__(self):
+    return LazyListIterator(self._iterator, self._values)
+
+  def __getitem__(self, y):
+    try:
+      while len(self._values) <= y:
+        self._values.append(self._iterator.next())
+    except StopIteration:
+      raise IndexError("list index out of range")
+    return self._values[y]
+
 def revparse(*args, **kwargs):
   try:
     return str(Sh("git", "rev-parse", *args)).strip()
@@ -206,17 +240,6 @@ class Branch(object):
     return ref_logs
 
   @lazy
-  def _COMMITS(cls):
-    raw = {}
-    for b in chain(cls.ALL, cls.REMOTES):
-      raw[b] = Sh("git", "log", "--first-parent", "--format=%H:%P:%s", b.name)
-    commits = {}
-    for b in raw:
-      commits[b] = [Commit(h, s.strip(), m.split(" ")[1:]) for h, m, s in
-                    (l.split(":", 2) for l in raw[b])]
-    return commits
-
-  @lazy
   def REV_MAP(cls):
     # We want the last branch that pointed to a particular reference,
     # unless two or more branches currently point to it, in which case
@@ -263,7 +286,10 @@ class Branch(object):
     Merges will only list commit hashes, not branches.
 
     """
-    return type(self)._COMMITS[self]
+    raw = Sh("git", "log", "--first-parent", "--format=%H:%P:%s", self.name)
+    commits = (Commit(h, s.strip(), m.split(" ")[1:]) for h, m, s in
+               (l.split(":", 2) for l in raw))
+    return LazyList(commits)
 
   @lazy
   def latestCommit(self):
