@@ -193,7 +193,7 @@ def printGraph(BranchIterator, clearScreen = False):
       sys.stdout.write(' ')
       control('\x1b[1;31m')
       if b.unmerged <= 20:
-        sys.stdout.write('%s unmerged' % unichr(0x245F + b.unmerged))
+        sys.stdout.write((u'%s unmerged' % unichr(0x245F + b.unmerged)).encode('UTF-8'))
       else:
         sys.stdout.write(" [%d unmerged]" % b.unmerged)
       control('\x1b[0m')
