@@ -1,8 +1,8 @@
-import re, sh, travispy, warnings
+import re, travispy, warnings
 from collections import defaultdict
 from multiprocessing.pool import ThreadPool
 from travispy import TravisPy
-from utils import Branch, lazy
+from utils import Branch, Sh, ShError, lazy
 
 class TravisClient(object):
 
@@ -10,23 +10,25 @@ class TravisClient(object):
 
   @lazy
   def _githubToken(self):
-    return str(sh.git.config('github.token', _tty_out=False)).strip()
+    return Sh('git', 'config', 'github.token').next()
 
   @lazy
   def _remoteSlugs(self):
     """Remote 'slug' of any GitHub repos, keyed by remote name."""
     try:
-      raw = sh.git.config('--get-regexp', 'remote\..*\.url', _tty_out=False, _iter=True)
+      raw = Sh('git', 'config', '--get-regexp', 'remote\..*\.url')
       remotes = {}
       for l in raw:
-        key, url = l.strip().split(' ', 1)
+        key, url = l.split(' ', 1)
         name = key.split('.', 1)[-1].rsplit('.', 1)[0]
         slug_match = TravisClient.SLUG_REGEX.match(url)
         if slug_match:
           remotes[name] = slug_match.group(1)
       return remotes
-    except sh.ErrorReturnCode_1:
-      return {}
+    except ShError, e:
+      if e.returncode == 1:
+        return {}
+      raise
 
   @lazy
   def _remotesByBranchName(self):
@@ -50,9 +52,9 @@ class TravisClient(object):
       with warnings.catch_warnings():
         warnings.filterwarnings('ignore', message='.*InsecurePlatformWarning.*')
         status = defaultdict(dict)
-        todos = ((branch, remote) 
+        todos = [(branch, remote) 
                  for branch, remotes in self._remotesByBranchName.iteritems()
-                 for remote in remotes)
+                 for remote in remotes]
         def fetchStatus(todo):
           branch, remote = todo
           slug = self._remoteSlugs[remote]
@@ -61,7 +63,11 @@ class TravisClient(object):
             status[branch][remote] = b.color
           except travispy.errors.TravisError, e:
             pass
-        pool.map(fetchStatus, todos)
+        if todos:
+          # Eagerly perform lazy evaluation so it happens on the main thread
+          self._remoteSlugs
+          self._githubToken
+          pool.map(fetchStatus, todos)
         return status
     except IOError:
       return defaultdict(dict)

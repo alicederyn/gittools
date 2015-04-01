@@ -1,8 +1,7 @@
-import getpass, json, keyring, posixpath, urlparse, requests, sh, warnings
+import getpass, requests, json, keyring, posixpath, urlparse, warnings
 from collections import Counter, defaultdict
 from itertools import count
-from multiprocessing.pool import ThreadPool
-from utils import Branch, lazy
+from utils import Branch, Sh, ShError, lazy
 
 class Stash(object):
 
@@ -19,17 +18,19 @@ class Stash(object):
   def _servers(self):
     """Remote Stash servers, keyed by remote name."""
     try:
-      raw = sh.git.config('--get-regexp', 'remote\..*\.url', _tty_out=False, _iter=True)
+      raw = Sh('git', 'config', '--get-regexp', 'remote\..*\.url')
       remotes = {}
       for l in raw:
-        key, server = l.strip().split(' ', 1)
+        key, server = l.split(' ', 1)
         name = key.split('.', 1)[-1].rsplit('.', 1)[0]
         url = urlparse.urlparse(server)
         if url.hostname and url.hostname.startswith('stash.'):
           remotes[name] = 'https://%s' % url.hostname
       return remotes
-    except sh.ErrorReturnCode_1:
-      return {}
+    except ShError, e:
+      if e.returncode == 1:
+        return {}
+      raise
 
   def _getWithAuth(self, url, auth):
     with warnings.catch_warnings():

@@ -31,7 +31,7 @@ def route(to, tree):
   return stack
 
 def getRebaseDir():
-  gitdir = revparse(git_dir=True)
+  gitdir = revparse('--git-dir')
   rebaseDir = os.path.join(gitdir, "rebase-merge")
   return rebaseDir
 

@@ -1,17 +1,126 @@
-import re, sh
+import os, re, select, subprocess, threading
 from collections import defaultdict, namedtuple
 from datetime import datetime
 from itertools import chain
 
 __all__ = ['first', 'lazy', 'revparse', 'getUpstreamBranch', 'Branch', 'Commit']
 
+class ShError(Exception):
+  def __init__(self, returncode, cmd, stderr):
+    self.returncode = returncode
+    self.cmd = cmd
+    self.stderr = stderr
+
+  def __str__(self):
+    message = '%s exited with return code %s' % (self.cmd[0], self.returncode)
+    stderr_lines = ['    ' + l for l in self.stderr.splitlines()]
+    if stderr_lines:
+      message += '\n' + '\n'.join(stderr_lines)
+    return message
+
+  def __repr__(self):
+    return 'ShError(%s, %s, %s)' % (repr(self.returncode), repr(self.cmd), repr(self.stderr))
+
+class Sh(object):
+  def __init__(self, *cmd):
+    self.cmd = cmd
+    self._process = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    self._out = []
+    self._err = []
+
+  def __iter__(self):
+    return self
+
+  def next(self):
+    # Note: no universal newline support
+    if len(self._out) == 1:
+      lf = self._out[0].find('\n')
+      if lf != -1:
+        line = self._out[0][:lf]
+        self._out[0] = self._out[0][lf+1:]
+        return line
+    read_set = [ v for v in (self._process.stdout, self._process.stderr) if v ]
+    while read_set:
+      try:
+        rlist, _, _ = select.select(read_set, [], [])
+      except select.error, e:
+        if e.args[0] == errno.EINTR:
+          continue
+        raise
+      if self._process.stderr in rlist:
+        data = os.read(self._process.stderr.fileno(), 1024)
+        if data == "":
+          self._process.stderr.close()
+          read_set.remove(self._process.stderr)
+          self._process.stderr = None
+        else:
+          self._err.append(data)
+      if self._process.stdout in rlist:
+        data = os.read(self._process.stdout.fileno(), 1024)
+        if data == "":
+          self._process.stdout.close()
+          read_set.remove(self._process.stdout)
+          self._process.stdout = None
+        else:
+          lf = data.find('\n')
+          if lf != -1:
+            line = ''.join(self._out) + data[:lf]
+            self._out = [data[lf+1:]]
+            return line
+          self._out.append(data)
+    if self._out:
+      line = ''.join(self._out)
+      self._out = []
+      if line:
+        return line
+    self._process.wait()
+    if self._process.returncode:
+      raise ShError(self._process.returncode, self.cmd, ''.join(self._err))
+    else:
+      raise StopIteration()
+
+  def _communicate(self):
+    out, err = self._process.communicate()
+    self._process.stdout = self._process.stderr = None
+    self._out.append(out)
+    out = ''.join(self._out)
+    self._out = []
+    if err:
+      self._err.append(err)
+    return out
+
+  def __str__(self):
+    out = self._communicate()
+    if self._process.returncode:
+      raise ShError(self._process.returncode, self.cmd, ''.join(self._err))
+    return out
+
+  def __repr__(self):
+    return '%s(%s)' % (type(self).__name__, ', '.join(repr(v) for v in self.cmd))
+
+  def __enter__(self):
+    return self
+
+  def __exit__(self, type, value, traceback):
+    if self._process.stdout:
+      self._process.stdout.close()
+      self._process.stdout = None
+    if self._process.stderr:
+      self._process.stderr.close()
+      self._process.stderr = None
+    try:
+      self._process.kill()
+      self._process.wait()
+    except OSError:
+      pass
+
 def first(collection, default=None):
   return next(iter(collection), default)
 
 def revparse(*args, **kwargs):
   try:
-    return str(sh.git("rev-parse", *args, **kwargs)).strip()
-  except sh.ErrorReturnCode, e:
+    return str(Sh("git", "rev-parse", *args)).strip()
+  except ShError, e:
     raise ValueError(e)
 
 def getUpstreamBranch(branch):
@@ -82,9 +191,8 @@ class Branch(object):
     raw = {}
     for b in cls.ALL:
       try:
-        raw[b] = sh.git.log("-g", "%s@{now}" % b.name, "--date=raw", "--format=%gd %H",
-                            _tty_out=False, _iter=True)
-      except sh.ErrorReturnCode:
+        raw[b] = Sh("git", "log", "-g", "%s@{now}" % b.name, "--date=raw", "--format=%gd %H")
+      except ShError:
         raw[b] = ()
 
     ref_logs = {}
@@ -101,8 +209,7 @@ class Branch(object):
   def _COMMITS(cls):
     raw = {}
     for b in chain(cls.ALL, cls.REMOTES):
-      raw[b] = sh.git.log("--first-parent", "--format=%H:%P:%s", b.name,
-                          _iter=True, _tty_out=False)
+      raw[b] = Sh("git", "log", "--first-parent", "--format=%H:%P:%s", b.name)
     commits = {}
     for b in raw:
       commits[b] = [Commit(h, s.strip(), m.split(" ")[1:]) for h, m, s in
@@ -215,12 +322,11 @@ class Branch(object):
   @lazy
   def modtime(self):
     """The timestamp of the latest commit to this branch."""
-    log = tuple(sh.git.log("-n5", "--format=%at", self.name, "--",
-                           _tty_out=False, _iter=True))
-    for line in log:
-      modtime = int(line.strip())
-      if modtime != 1:
-        return datetime.utcfromtimestamp(modtime)
+    with Sh("git", "log", "-n5", "--format=%at", self.name, "--") as log:
+      for line in log:
+        modtime = int(line)
+        if modtime != 1:
+          return datetime.utcfromtimestamp(modtime)
     return None
 
   @lazy

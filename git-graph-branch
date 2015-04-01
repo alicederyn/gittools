@@ -21,7 +21,7 @@ Options:
 """
 # Observed bugs:
 #  1) git branch -f BRANCH commit  -- not noticed by --watch
-import heapq, os.path, sh, sys, threading, time, traceback, watchdog.events, watchdog.observers
+import heapq, os.path, sys, threading, time, traceback, watchdog.events, watchdog.observers
 from bisect import bisect_left
 from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
@@ -261,7 +261,7 @@ class Watcher(watchdog.events.FileSystemEventHandler):
     self.notBefore = datetime.utcnow() + self.maxUpdateFreq
 
 def watchForChanges(waitToMerge, maxUpdateFreq, action):
-  gitdir = revparse(git_dir=True)
+  gitdir = revparse("--git-dir")
   head = os.path.join(gitdir, 'HEAD')
   branches = os.path.join(gitdir, 'refs', 'heads', '*')
   remotes = os.path.join(gitdir, 'refs', 'remotes', '*', '*')
