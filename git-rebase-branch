@@ -189,7 +189,6 @@ def resetAction(arguments):
     sh.git.reset("--hard", branch)
 
 def mergeAction(arguments):
-  print arguments
   branches = arguments['<branch>']
   committedBranches = frozenset(b.name for b in Branch.ALL)
   commits = getUncommittedBranches()
