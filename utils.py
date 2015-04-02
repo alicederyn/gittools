@@ -327,6 +327,11 @@ class Branch(object):
         break
       if c.merges:
         mergedBranches = tuple(type(self).REV_MAP.get(rev, rev) for rev in c.merges)
+        # WORKAROUND: Filter out branches that aren't in the subject
+        # TODO: Drop REV_MAP and only consider branches that are in the subject, so we don't
+        #       'hide' valid merges with invalid ones.
+        mergedBranches = tuple(b for b in mergedBranches
+                                if type(b) != Branch or "'%s'" % b.name in c.subject)
         commits.append(Commit(c.hash, c.subject, mergedBranches))
       else:
         commits.append(c)
