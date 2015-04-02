@@ -335,14 +335,15 @@ class Branch(object):
         commits.append(Commit(c.hash, c.subject, mergedBranches))
       else:
         commits.append(c)
-    return commits
+    return tuple(commits)
 
   @lazy
   def parents(self):
     """All parents of this branch, whether upstream or merged."""
+    if self.upstream is None:
+      return frozenset()
     parents = [p for c in self.commits for p in c.merges if type(p) == Branch]
-    if self.upstream is not None:
-      parents.append(self.upstream)
+    parents.append(self.upstream)
     return frozenset(parents)
 
   @lazy
@@ -363,12 +364,15 @@ class Branch(object):
   @lazy
   def unmerged(self):
     """The number of parent commits that have not been pulled to this branch."""
+    if self.upstream is None:
+      return 0
     allCommits = set(c.hash for c in self.allCommits)
-    for c in self.allCommits:
-      if c == self.upstreamCommit:
-        break
-      for rev in c.merges:
-        allCommits.update(Sh("git", "log", "--first-parent", "--format=%H", rev))
+    if len(self.parents) > 1:
+      for c in self.allCommits:
+        if c == self.upstreamCommit:
+          break
+        for rev in c.merges:
+          allCommits.update(Sh("git", "log", "--first-parent", "--format=%H", rev))
     parentCommits = set()
     for p in self.parents:
       for c in p.allCommits:
