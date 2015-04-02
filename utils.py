@@ -12,7 +12,10 @@ class ShError(Exception):
     self.stderr = stderr
 
   def __str__(self):
-    message = '%s exited with return code %s' % (self.cmd[0], self.returncode)
+    message = '%s exited with return code %s [%s]' % (
+        self.cmd[0],
+        self.returncode,
+        ('arguments: %s' % ' '.join(self.cmd[1:])) if len(self.cmd) > 1 else 'no arguments')
     stderr_lines = ['    ' + l for l in self.stderr.splitlines()]
     if stderr_lines:
       message += '\n' + '\n'.join(stderr_lines)
