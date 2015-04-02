@@ -145,7 +145,8 @@ class SimpleBranchIterator(object):
 def localParents(b, remotes):
   return [p for p in b.parents if not p.name in remotes]
 
-def printGraph(BranchIterator, clearScreen = False, ci = True):
+def printGraph(BranchIterator, clearScreen = False, ciTypes = ()):
+  ciTools = [ciType() for ciType in ciTypes]
   branches = getBranches()
   remotes = getRemotes()
   remoteHashes = dict(zip(remotes, revparse(*remotes).splitlines()))
@@ -156,7 +157,6 @@ def printGraph(BranchIterator, clearScreen = False, ci = True):
   done = set()
   awaitingParents = []
   firstChilds = []
-  ciTools = (Stash(), TravisClient()) if ci else ()
 
   if clearScreen:
     sys.stdout.write('\x1b[0;0H')
@@ -282,7 +282,7 @@ def getPrintGraphArgs(options):
   return {
     'BranchIterator' : select('--order-algo',   simple   = SimpleBranchIterator,
                                                 priority = PriorityBranchIterator),
-    'ci' : not options['--no-ci']
+    'ciTypes' : () if options['--no-ci'] else (Stash, TravisClient)
   }
 
 if __name__ == '__main__':

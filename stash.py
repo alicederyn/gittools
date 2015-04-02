@@ -1,9 +1,35 @@
-import getpass, requests, json, keyring, posixpath, urlparse, warnings
+import concurrent.futures.thread, getpass, json, keyring, posixpath, requests, urlparse, warnings
 from collections import Counter, defaultdict
 from itertools import count
 from utils import Branch, Sh, ShError, lazy
 
 class Stash(object):
+
+  def __init__(self):
+    serversByRemote = self._getServers()
+    servers = frozenset(serversByRemote.values())
+    branchesByCommit = defaultdict(set)
+    commitsByServer = defaultdict(set)
+    for remoteBranch in Branch.REMOTES:
+      remote, branchName = remoteBranch.name.split('/', 1)
+      if remote in serversByRemote:
+        server = serversByRemote[remote]
+        commit = remoteBranch.latestCommit.hash
+        commitsByServer[server].add(commit)
+        branchesByCommit[commit].add(branchName)
+    self._branchesByCommit = branchesByCommit
+    self._commitsByServer = commitsByServer
+    self._auth = self._getAuth(servers)
+
+    if servers:
+      self._executor = concurrent.futures.thread.ThreadPoolExecutor(3)
+      self._futuresByServer = {
+          server : self._executor.submit(self._getServerStatsByBranch, server)
+              for server in servers
+      }
+      self._statsByBranch = None
+    else:
+      self._statsByBranch = defaultdict(Counter)
 
   PARAMS = {
     'verify' : False,
@@ -14,8 +40,7 @@ class Stash(object):
     'failed' : 'red',
   }
 
-  @lazy
-  def _servers(self):
+  def _getServers(self):
     """Remote Stash servers, keyed by remote name."""
     try:
       raw = Sh('git', 'config', '--get-regexp', 'remote\..*\.url')
@@ -41,11 +66,10 @@ class Stash(object):
         raise RuntimeError('Got %d fetching %s as %s' % (r.status_code, url, auth[0]))
       return r.json()
 
-  @lazy
-  def _auth(self):
+  def _getAuth(self, servers):
     user = getpass.getuser()
     auth = {}
-    for server in set(self._servers.values()):
+    for server in servers:
       password = keyring.get_password(server, user)
       if password is None:
         password = getpass.getpass('Password for %s? ' % server)
@@ -57,7 +81,7 @@ class Stash(object):
       auth[server] = (user, password)
     return auth
 
-  def _getCommitStats(self, server, commits):
+  def _getRawServerStats(self, server, commits):
     try:
       with warnings.catch_warnings():
         warnings.simplefilter(
@@ -73,26 +97,23 @@ class Stash(object):
     except IOError:
       return {}
 
-  @lazy
-  def _ciStatuses(self):
-    branchesByCommit = defaultdict(set)
-    commitsByServer = defaultdict(set)
-    for remoteBranch in Branch.REMOTES:
-      remote, branchName = remoteBranch.name.split('/', 1)
-      if remote in self._servers:
-        server = self._servers[remote]
-        commit = remoteBranch.latestCommit.hash
-        commitsByServer[server].add(commit)
-        branchesByCommit[commit].add(branchName)
+  def _getServerStatsByBranch(self, server):
     statsByBranch = defaultdict(Counter)
-    for server, commits in commitsByServer.iteritems():
-      for commit, stats in self._getCommitStats(server, commits).iteritems():
-        colorCodedStats = { Stash.STATUS_MAP[k] : v for k, v in stats.iteritems()
-                            if k in Stash.STATUS_MAP }
-        for branch in branchesByCommit[commit]:
-          statsByBranch[branch].update(colorCodedStats)
+    commits = self._commitsByServer[server]
+    rawStats = self._getRawServerStats(server, commits)
+    for commit, stats in rawStats.iteritems():
+      colorCodedStats = { Stash.STATUS_MAP[k] : v for k, v in stats.iteritems()
+                          if k in Stash.STATUS_MAP }
+      for branch in self._branchesByCommit[commit]:
+        statsByBranch[branch].update(colorCodedStats)
     return statsByBranch
 
   def ciStatus(self, branch):
-    return dict(zip(count(0), self._ciStatuses[branch.name].elements()))
+    if self._statsByBranch is None:
+      self._statsByBranch = defaultdict(Counter)
+      for serverStatsByBranch in self._futuresByServer.itervalues():
+        for b, stats in serverStatsByBranch.result().iteritems():
+          self._statsByBranch[b].update(stats)
+      self._executor.shutdown()
+    return dict(zip(count(0), self._statsByBranch[branch.name].elements()))
 
