@@ -233,10 +233,13 @@ class Branch(object):
     rx = re.compile("@[{](\\d+) .*[}] (\\w+)")
     for b in raw:
       ref_logs[b] = branch_logs = []
-      for l in raw[b]:
-        m = rx.search(l)
-        if m:
-          branch_logs.append(RefLine(int(m.group(1)), m.group(2)))
+      try:
+        for l in raw[b]:
+          m = rx.search(l)
+          if m:
+            branch_logs.append(RefLine(int(m.group(1)), m.group(2)))
+      except ShError:
+        pass
     return ref_logs
 
   @lazy
