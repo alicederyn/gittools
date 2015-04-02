@@ -1,4 +1,4 @@
-import concurrent.futures.thread, getpass, json, keyring, posixpath, requests, urlparse, warnings
+import concurrent.futures.thread, getpass, json, keyring, posixpath, re, requests, urlparse, warnings
 from collections import Counter, defaultdict
 from itertools import count
 from utils import Branch, Sh, ShError, lazy
@@ -31,6 +31,8 @@ class Stash(object):
     else:
       self._statsByBranch = defaultdict(Counter)
 
+  STASH_REGEX = re.compile('^git[@](stash[^:]*):.*$')
+
   PARAMS = {
     'verify' : False,
   }
@@ -48,14 +50,27 @@ class Stash(object):
       for l in raw:
         key, server = l.split(' ', 1)
         name = key.split('.', 1)[-1].rsplit('.', 1)[0]
-        url = urlparse.urlparse(server)
-        if url.hostname and url.hostname.startswith('stash.'):
-          remotes[name] = 'https://%s' % url.hostname
+        hostname = Stash._getStashHostname(server)
+        if hostname:
+          remotes[name] = 'https://%s' % hostname
       return remotes
     except ShError, e:
       if e.returncode == 1:
         return {}
       raise
+
+  @staticmethod
+  def _getStashHostname(url):
+    stash_match = Stash.STASH_REGEX.match(url)
+    if stash_match:
+      match = stash_match.group(1)
+      if match == 'stash' or match.startswith('stash.'):
+        return match
+    url = urlparse.urlparse(url)
+    if url.hostname:
+      if url.hostname == 'stash' or url.hostname.startswith('stash.'):
+        return url.hostname
+    return None
 
   def _getWithAuth(self, url, auth):
     with warnings.catch_warnings():
