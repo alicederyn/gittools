@@ -180,7 +180,7 @@ def printGraph(BranchIterator, clearScreen = False, ciTypes = ()):
         sys.stdout.write('🔶 ')
       else:
         sys.stdout.write('🔷 ')
-    ciStatuses = { status for tool in ciTools for status in tool.ciStatus(b).values() }
+    ciStatuses = [ status for tool in ciTools for status in tool.ciStatus(b).values() ]
     if ciStatuses:
       sys.stdout.write(' ')
       for status in ciStatuses:
