@@ -364,6 +364,11 @@ class Branch(object):
   def unmerged(self):
     """The number of parent commits that have not been pulled to this branch."""
     allCommits = set(c.hash for c in self.allCommits)
+    for c in self.allCommits:
+      if c == self.upstreamCommit:
+        break
+      for rev in c.merges:
+        allCommits.update(Sh("git", "log", "--first-parent", "--format=%H", rev))
     parentCommits = set()
     for p in self.parents:
       for c in p.allCommits:
