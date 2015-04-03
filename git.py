@@ -24,12 +24,28 @@ Commit = namedtuple("Commit", "hash subject merges")
 
 class Branch(object):
   _BRANCHES_BY_ID = { }
+  _MERGE_PATTERN = re.compile(
+      "Merge branch(?: '([^']+)'|es ('[^']+'(?:, '[^']+')*) and '([^']+)')")
+
+  @staticmethod
+  def _mergedBranches(comment):
+    """If comment is a merge commit comment, returns the branches named in it."""
+    branches = []
+    m = Branch._MERGE_PATTERN.match(comment)
+    if m:
+      branches.extend(m.group(i) for i in (1,3) if m.group(i))
+      if m.group(2):
+        branches.extend(t[1:-1] for t in m.group(2).split(', '))
+    return frozenset(branches)
 
   @classmethod
   def clear_cache(cls):
     for k, p in vars(cls).iteritems():
       if k == k.upper():
-        p.clear()
+        try:
+          p.clear()
+        except AttributeError:
+          pass
 
   @lazy
   def HEAD(cls):
@@ -73,28 +89,6 @@ class Branch(object):
       except ShError:
         pass
     return ref_logs
-
-  @lazy
-  def REV_MAP(cls):
-    # We want the last branch that pointed to a particular reference,
-    # unless two or more branches currently point to it, in which case
-    # we want the one that has pointed to it the longest.
-    rev_map = defaultdict(list)
-    for b in cls.ALL:
-      last_timestamp = None
-      first_rev = None
-      for ref in cls._REF_LOGS[b]:
-        if last_timestamp is None:
-          first_rev = ref.hash
-        else:
-          if first_rev is not None:
-            rev_map[first_rev].append((ref.timestamp, b))
-            first_rev = None
-          rev_map[ref.hash].append((-last_timestamp, b))
-        last_timestamp = ref.timestamp
-      if first_rev is not None:
-        rev_map[first_rev].append((ref.timestamp, b))
-    return { k : max(v)[1] for k, v in rev_map.iteritems() }
 
   def __new__(cls, name):
     if name not in cls._BRANCHES_BY_ID:
@@ -156,21 +150,16 @@ class Branch(object):
   @lazy
   def commits(self):
     """All commits made to this branch since it left upstream, including merges."""
-    commits = []
-    for c in self.allCommits:
-      if c == self.upstreamCommit:
-        break
-      if c.merges:
-        mergedBranches = tuple(type(self).REV_MAP.get(rev, rev) for rev in c.merges)
-        # WORKAROUND: Filter out branches that aren't in the subject
-        # TODO: Drop REV_MAP and only consider branches that are in the subject, so we don't
-        #       'hide' valid merges with invalid ones.
-        mergedBranches = tuple(b for b in mergedBranches
-                                if type(b) != Branch or "'%s'" % b.name in c.subject)
-        commits.append(Commit(c.hash, c.subject, mergedBranches))
-      else:
-        commits.append(c)
-    return tuple(commits)
+    def impl():
+      for c in self.allCommits:
+        if c == self.upstreamCommit:
+          return
+        mergedBranches = [Branch(name) for name in Branch._mergedBranches(c.subject)]
+        if mergedBranches:
+          yield Commit(c.hash, c.subject, mergedBranches)
+        else:
+          yield c
+    return LazyList(impl())
 
   @lazy
   def parents(self):
