@@ -199,7 +199,12 @@ def mergeAction(arguments):
       mergeArgs.append(commits[branch])
     else:
       mergeArgs.append(branch)
-  sh.git.merge("--no-edit", "-m", "Merge in %s" % ", ".join(branches), *mergeArgs)
+  if len(branches) == 1:
+    message = "Merge branch '%s'" % branch
+  else:
+    message = "Merge branches %s and '%s'" % (
+        ', '.join("'%s'" % b for b in branches[:-1]), branches)
+  sh.git.merge("--no-edit", "-m", message, *mergeArgs)
 
 def editScriptAction(arguments):
   gitEditor = arguments["<editor>"]
