@@ -1,8 +1,9 @@
 import re, travispy, warnings
 from collections import defaultdict
+from git import Branch
 from multiprocessing.pool import ThreadPool
 from travispy import TravisPy
-from utils import Branch, Sh, ShError, lazy
+from utils import Sh, ShError, lazy
 
 class TravisClient(object):
 

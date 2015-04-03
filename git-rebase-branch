@@ -17,9 +17,9 @@ Options:
 import sh, os, tempfile
 from collections import namedtuple
 from docopt import docopt
+from git import revparse, getUpstreamBranch, Branch
 from itertools import takewhile
 from shutil import copyfile
-from utils import revparse, getUpstreamBranch, Branch
 
 rebase_branch = "git rebase-branch"
 

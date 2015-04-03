@@ -10,7 +10,7 @@ during the patch).
 Options:
     -h --help               Show this screen.
 """
-import sh, subprocess, sys, time, utils
+import git, sh, subprocess, sys, time
 from docopt import docopt
 from subprocess import PIPE
 
@@ -62,4 +62,4 @@ def splitPick(commit):
 
 if __name__ == '__main__':
   arguments = docopt(__doc__)
-  splitPick(utils.revparse(arguments['<commit>']))
+  splitPick(git.revparse(arguments['<commit>']))

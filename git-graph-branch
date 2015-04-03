@@ -28,11 +28,11 @@ from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from docopt import docopt
 from fnmatch import fnmatch
+from git import Branch, revparse
 from layout import layout_to
 from itertools import chain, cycle, product
 from stash import Stash
 from travis import TravisClient
-from utils import Branch, revparse
 
 def getBranches():
   """Returns all branches, oldest first."""

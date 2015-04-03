@@ -1,6 +1,7 @@
 import re
 from collections import defaultdict, namedtuple
 from datetime import datetime
+from utils import first, lazy, LazyList, Sh, ShError
 
 __all__ = ['revparse', 'getUpstreamBranch', 'Branch']
 
