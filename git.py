@@ -5,12 +5,14 @@ from datetime import datetime
 __all__ = ['revparse', 'getUpstreamBranch', 'Branch']
 
 def revparse(*args):
+  """Returns the result of `git rev-parse *args`."""
   try:
     return str(Sh("git", "rev-parse", *args)).strip()
   except ShError, e:
     raise ValueError(e)
 
 def getUpstreamBranch(branch):
+  """Returns the upstream of branch, or None if none is set."""
   try:
     return revparse("--abbrev-ref", branch + "@{upstream}")
   except ValueError:
@@ -30,6 +32,7 @@ class Branch(object):
 
   @lazy
   def HEAD(cls):
+    """The current HEAD branch, or None if head is detached."""
     try:
       return cls(revparse("--abbrev-ref", "HEAD"))
     except ValueError:
@@ -37,11 +40,13 @@ class Branch(object):
 
   @lazy
   def ALL(cls):
+    """The set of all (local) branches."""
     names = revparse("--abbrev-ref", "--branches").splitlines()
     return frozenset(cls(name) for name in names)
 
   @lazy
   def REMOTES(cls):
+    """The set of all remote branches that have a local branch of the same name."""
     names = revparse("--abbrev-ref", "--remotes").splitlines()
     locals = frozenset(b.name for b in cls.ALL)
     return frozenset(cls(name) for name in names if name.split('/', 1)[-1] in locals)
