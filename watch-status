@@ -1,7 +1,6 @@
 #!/usr/local/bin/python
-import itertools, os.path, signal, subprocess, sys, threading, time, watchdog.events, watchdog.observers
+import os.path, subprocess, sys, threading, watchdog.events, watchdog.observers
 from datetime import datetime, timedelta
-from heapq import heappush, heappop
 
 # wait(None) blocks signals like KeyboardInterrupt
 # Use wait(99999) instead

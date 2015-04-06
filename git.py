@@ -91,6 +91,8 @@ class Branch(object):
     return ref_logs
 
   def __new__(cls, name):
+    if name == 'HEAD':
+      raise ValueError('HEAD is not a valid Branch name')
     if name not in cls._BRANCHES_BY_ID:
       cls._BRANCHES_BY_ID[name] = object.__new__(cls, name)
     return cls._BRANCHES_BY_ID[name]
