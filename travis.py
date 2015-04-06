@@ -48,8 +48,10 @@ class TravisClient(object):
 
   @lazy
   def _ciStatuses(self):
+    if not self._remotesByBranchName:
+      return defaultdict(dict)
+    pool = ThreadPool(20)
     try:
-      pool = ThreadPool(20)
       with warnings.catch_warnings():
         warnings.filterwarnings('ignore', message='.*InsecurePlatformWarning.*')
         status = defaultdict(dict)
@@ -72,6 +74,8 @@ class TravisClient(object):
         return status
     except IOError:
       return defaultdict(dict)
+    finally:
+      pool.close()
 
   def ciStatus(self, branch):
     return self._ciStatuses[branch.name]
