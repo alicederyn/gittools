@@ -1,0 +1,119 @@
+#!/usr/local/bin/python
+import itertools, os.path, signal, subprocess, sys, threading, time, watchdog.events, watchdog.observers
+from datetime import datetime, timedelta
+from heapq import heappush, heappop
+
+# wait(None) blocks signals like KeyboardInterrupt
+# Use wait(99999) instead
+INDEFINITELY = 99999
+
+def fractionalSeconds(delta):
+  return delta.total_seconds() + delta.microseconds / 10000000.0
+
+class GitLockWatcher(watchdog.events.FileSystemEventHandler):
+  def __init__(self, latency = timedelta(seconds = 0.2)):
+    self.latency = latency
+    self.observer = None
+    self._unlock_timestamp = datetime.utcfromtimestamp(0)
+    self._unlocked = threading.Condition()
+
+  @property
+  def is_locked(self):
+    assert self.observer is not None
+    return self._unlock_timestamp is not None and self._unlock_timestamp <= datetime.utcnow()
+
+  def await_unlocked(self):
+    while True:
+      timeout = (fractionalSeconds(self._unlock_timestamp - datetime.utcnow()) 
+                 if self._unlock_timestamp else INDEFINITELY)
+      if timeout is not None and timeout <= 0:
+        return
+      with self._unlocked:
+        self._unlocked.wait(timeout)
+
+  def _lock(self):
+    self._unlock_timestamp = None
+
+  def _unlock(self):
+    with self._unlocked:
+      self._unlock_timestamp = datetime.utcnow() + self.latency
+      self._unlocked.notify_all()
+
+  def __enter__(self):
+    assert self.observer is None
+    self.lockfile = '.git/index.lock'
+    self.observer = watchdog.observers.Observer()
+    self.observer.schedule(self, '.git', recursive = False)
+    self.observer.start()
+    if os.path.exists(self.lockfile):
+      self._lock()
+    return self
+
+  def __exit__(self, type, value, traceback):
+    self.observer.stop()
+    self.observer.join()
+    self.observer = None
+
+  def on_created(self, event):
+    if event.src_path == self.lockfile:
+      self._lock()
+
+  def on_deleted(self, event):
+    if event.src_path == self.lockfile:
+      self._unlock()
+
+  def on_moved(self, event):
+    if event.src_path == self.lockfile:
+      self._unlock()
+    if event.dest_path == self.lockfile:
+      self._lock()
+
+class GitFilesWatcher(watchdog.events.FileSystemEventHandler):
+  def __init__(self):
+    self.observer = None
+    self._modified = threading.Event()
+
+  def await_modification(self):
+    while not self._modified.wait(INDEFINITELY):
+      pass
+    self._modified.clear()
+
+  def clear(self):
+    self._modified.clear()
+
+  def __enter__(self):
+    assert self.observer is None
+    self.gitdir = '.git/'
+    self.gitwatched = frozenset(('.git/index', '.git/HEAD'))
+    self.observer = watchdog.observers.Observer()
+    self.observer.schedule(self, '.', recursive = True)
+    self.observer.start()
+    return self
+
+  def __exit__(self, type, value, traceback):
+    self.observer.stop()
+    #self.observer.join()
+    self.observer = None
+
+  def on_any_event(self, event):
+    if not event.is_directory:
+      path = os.path.normpath(event.src_path)
+      if path.startswith(self.gitdir):
+        if path in self.gitwatched:
+          self._modified.set()
+      else:
+        self._modified.set()
+
+if __name__ == '__main__':
+  assert sys.stdout.isatty()
+  try:
+    with GitLockWatcher() as git_lock, GitFilesWatcher() as files:
+      while True:
+        sys.stdout.write('\x1b[0;0H\x1b[2J')
+        sys.stdout.flush()
+        subprocess.check_call(['git', 'status', '-sbu'])
+        files.await_modification()
+        git_lock.await_unlocked()
+  except KeyboardInterrupt:
+    pass
+
