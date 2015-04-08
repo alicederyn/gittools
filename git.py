@@ -1,7 +1,8 @@
 import re
 from collections import defaultdict, namedtuple
 from datetime import datetime
-from utils import first, lazy, LazyList, Sh, ShError
+from lazy import lazy
+from utils import first, LazyList, Sh, ShError
 
 __all__ = ['revparse', 'getUpstreamBranch', 'Branch']
 
@@ -43,11 +44,12 @@ class Branch(object):
     for k, p in vars(cls).iteritems():
       if k == k.upper():
         try:
-          p.clear()
+          p.invalidate()
         except AttributeError:
           pass
 
   @lazy
+  @classmethod
   def HEAD(cls):
     """The current HEAD branch, or None if head is detached."""
     try:
@@ -56,12 +58,14 @@ class Branch(object):
       return None
 
   @lazy
+  @classmethod
   def ALL(cls):
     """The set of all (local) branches."""
     names = revparse("--abbrev-ref", "--branches").splitlines()
     return frozenset(cls(name) for name in names)
 
   @lazy
+  @classmethod
   def REMOTES(cls):
     """The set of all remote branches that have a local branch of the same name."""
     names = revparse("--abbrev-ref", "--remotes").splitlines()
@@ -69,6 +73,7 @@ class Branch(object):
     return frozenset(cls(name) for name in names if name.split('/', 1)[-1] in locals)
 
   @lazy
+  @classmethod
   def _REF_LOGS(cls):
     raw = {}
     for b in cls.ALL:
@@ -107,10 +112,12 @@ class Branch(object):
     return hash(self.name)
 
   @lazy
+  @property
   def _refLog(self):
     return type(self)._REF_LOGS.get(self, ())
 
   @lazy
+  @property
   def allCommits(self):
     """All commits made to this branch, in reverse chronological order.
 
@@ -123,17 +130,20 @@ class Branch(object):
     return LazyList(commits)
 
   @lazy
+  @property
   def latestCommit(self):
     """The latest commit made to this branch."""
     return self.allCommits[0]
 
   @lazy
+  @property
   def upstream(self):
     """The branch set as this branch's 'upstream', or None if none is set."""
     upstreamName = getUpstreamBranch(self.name)
     return None if upstreamName is None else Branch(upstreamName)
 
   @lazy
+  @property
   def upstreamCommit(self):
     """The most recent commit this branch shares with its upstream.
 
@@ -150,6 +160,7 @@ class Branch(object):
                  if c.hash in upstreamCommitHashes or c.hash == firstUpstreamReference)
 
   @lazy
+  @property
   def commits(self):
     """All commits made to this branch since it left upstream, including merges."""
     def impl():
@@ -164,6 +175,7 @@ class Branch(object):
     return LazyList(impl())
 
   @lazy
+  @property
   def parents(self):
     """All parents of this branch, whether upstream or merged."""
     if self.upstream is None:
@@ -173,11 +185,13 @@ class Branch(object):
     return frozenset(parents)
 
   @lazy
+  @property
   def children(self):
     """All branches which have this branch as upstream or merged."""
     return frozenset(b for b in type(self).ALL if self in b.parents)
 
   @lazy
+  @property
   def modtime(self):
     """The timestamp of the latest commit to this branch."""
     with Sh("git", "log", "-n5", "--format=%at", self.name, "--") as log:
@@ -188,6 +202,7 @@ class Branch(object):
     return None
 
   @lazy
+  @property
   def unmerged(self):
     """The number of parent commits that have not been pulled to this branch."""
     if self.upstream is None:
