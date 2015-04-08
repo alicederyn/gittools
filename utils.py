@@ -1,6 +1,6 @@
 import os, select, subprocess
 
-__all__ = ['first', 'lazy', 'LazyList', 'Sh', 'ShError']
+__all__ = ['first', 'LazyList', 'Sh', 'ShError']
 
 class ShError(Exception):
   def __init__(self, returncode, cmd, stderr):
@@ -150,31 +150,4 @@ class LazyList(object):
     except StopIteration:
       raise IndexError("list index out of range")
     return self._values[y]
-
-class lazy(object):
-  """Lazily-calculated class and object properties."""
-  def __init__(self, func):
-    self._func = func
-    self.__name__ = func.__name__
-    self.__doc__ = func.__doc__
-
-  def __get__(self, obj, klass=None):
-    if self.__name__ == self.__name__.upper():
-      if obj is not None:
-        raise AttributeError("'%s' object has no attribute '%s'"
-                             % (klass.__name__, self.__name__))
-      if 'result' not in vars(self):
-        self.result = self._func(klass)
-      return self.result
-    else:
-      if obj is None:
-        raise AttributeError("type object '%s' has no attribute '%s'"
-                             % (klass.__name__, self.__name__))
-      result = self._func(obj)
-      setattr(obj, self.__name__, result)
-      return result
-
-  def clear(self):
-    if 'result' in vars(self):
-      del vars(self)['result']
 
