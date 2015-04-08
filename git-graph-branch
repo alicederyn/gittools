@@ -261,12 +261,16 @@ class Watcher(watchdog.events.FileSystemEventHandler):
     self.lastSeen = seen
     self.notBefore = datetime.utcnow() + self.maxUpdateFreq
 
-def watchForChanges(waitToMerge, maxUpdateFreq, action):
-  gitdir = revparse("--git-dir")
+def filesToWatch(gitdir):
   head = os.path.join(gitdir, 'HEAD')
+  config = os.path.join(gitdir, 'config')
   branches = os.path.join(gitdir, 'refs', 'heads', '*')
   remotes = os.path.join(gitdir, 'refs', 'remotes', '*', '*')
-  with Watcher(gitdir, [head, branches, remotes], waitToMerge, maxUpdateFreq) as watcher:
+  return [head, config, branches, remotes]
+
+def watchForChanges(waitToMerge, maxUpdateFreq, action):
+  gitdir = revparse("--git-dir")
+  with Watcher(gitdir, filesToWatch(gitdir), waitToMerge, maxUpdateFreq) as watcher:
     while True:
       Branch.clear_cache()
       action()
