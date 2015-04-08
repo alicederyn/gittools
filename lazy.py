@@ -9,11 +9,19 @@ def lazy(object):
     return LazyStaticProperty(object.__func__)
   elif isinstance(object, property):
     return LazyProperty(object.fget)
+  elif hasattr(object, '__call__'):
+    return LazyFunction(object)
   else:
     return LazyAttribute(object)
 
 class LocallyEvaluating(threading.local):
   evaluating = None
+  _after_evaluation = []
+
+  def invalidate_after_evaluation(self, lazyObject):
+    if not self.evaluating:
+      raise ValueError()
+    self._after_evaluation.append(lazyObject)
 
 _locally = LocallyEvaluating()
 
@@ -28,17 +36,21 @@ class LazyEvaluationContext(object):
 
   def __exit__(self, type, value, traceback):
     _locally.evaluating = self._wasEvaluating
+    if _locally.evaluating is None:
+      while _locally._after_evaluation:
+        _locally._after_evaluation.pop().invalidate()
 
-class InvalidationBeforeCalculationCompletedException(Exception):
-  pass
-
-class LazyValue(object):
+class LazyComputation(object):
   def invalidate(self):
-    assert not _locally.evaluating
+    try:
+      _locally.invalidate_after_evaluation(self)
+      return
+    except ValueError:
+      pass
     try:
       del self._value
     except AttributeError:
-      raise InvalidationBeforeCalculationCompletedException()
+      pass
     try:
       refs = tuple(self._refs)
     except AttributeError:
@@ -71,6 +83,41 @@ class LazyValue(object):
       raise e
     return value
 
+class InvalidationEvent():
+  def __init__(self):
+    self.event = threading.Event()
+
+  def clear(self):
+    self.event.clear()
+
+  def invalidate(self):
+    self.event.set()
+
+  def wait(self):
+    while not self.event.is_set():
+      self.event.wait(99999)
+
+class LazyFunction(object):
+  def __init__(self, func):
+    self.__func__ = func
+    self.__name__ = func.__name__
+    self.__doc__ = func.__doc__
+    self._value = LazyComputation()
+
+  def __call__(self):
+    return self._value.get(self.__func__)
+
+  def invalidate(self):
+    self._value.invalidate()
+
+  def continually(self):
+    event = InvalidationEvent()
+    while True:
+      with LazyEvaluationContext(event):
+        self()
+      event.wait()
+      event.clear()
+
 class LazyAttribute(object):
   """Attribute with lazy propagation on updates."""
   def __init__(self, default):
@@ -88,7 +135,7 @@ class LazyAttribute(object):
         raise Exception('%s not found on %s', self, objtype)
 
   def _get_lazy_value(self, obj):
-    return obj.__dict__.setdefault(self.__name__, LazyValue())
+    return obj.__dict__.setdefault(self.__name__, LazyComputation())
 
   def __get__(self, obj, objtype):
     self._find_name(obj, objtype)
@@ -99,10 +146,7 @@ class LazyAttribute(object):
   def __set__(self, obj, value):
     self._find_name(obj)
     lazy_value = self._get_lazy_value(obj)
-    try:
-      lazy_value.invalidate()
-    except InvalidationBeforeCalculationCompletedException:
-      pass
+    lazy_value.invalidate()
     lazy_value.set(value)
 
 class LazyProperty(object):
@@ -115,7 +159,7 @@ class LazyProperty(object):
   def __get__(self, obj, objtype=None):
     if obj is None:
       return self
-    return obj.__dict__.setdefault(self.__name__, LazyValue()).get(self._func, obj)
+    return obj.__dict__.setdefault(self.__name__, LazyComputation()).get(self._func, obj)
 
   def __set__(self, obj, value):
     raise AttributeError()
@@ -126,7 +170,7 @@ class LazyClassProperty(object):
     self._func = func
     self.__name__ = func.__name__
     self.__doc__ = func.__doc__
-    self._value = LazyValue()
+    self._value = LazyComputation()
 
   def __get__(self, obj, objtype=None):
     if obj is not None:
@@ -143,7 +187,7 @@ class LazyStaticProperty(object):
     self._func = func
     self.__name__ = func.__name__
     self.__doc__ = func.__doc__
-    self._value = LazyValue()
+    self._value = LazyComputation()
 
   def __get__(self, obj, objtype=None):
     if obj is not None:

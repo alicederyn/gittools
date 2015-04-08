@@ -27,6 +27,22 @@ def test_attribute_immediate_overwrite():
   foo.bar = 3
   assert 3 == foo.bar
 
+def test_function():
+  i = [0]
+  @lazy
+  def foo():
+    i[0] += 1
+    return i[0]
+  assert i[0] == 0
+  assert 1 == foo()
+  assert i[0] == 1
+  assert 1 == foo()
+  foo.invalidate()
+  assert i[0] == 1
+  assert 2 == foo()
+  assert i[0] == 2
+  assert 2 == foo()
+
 def test_independent_attributes():
   class Foo(object):
     bar = lazy(1)
