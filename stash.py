@@ -2,7 +2,7 @@ import concurrent.futures.thread, getpass, json, keyring, posixpath, re, request
 from collections import Counter, defaultdict
 from git import Branch
 from itertools import count
-from utils import Sh, ShError, lazy
+from utils import Sh, ShError
 
 class Stash(object):
 
