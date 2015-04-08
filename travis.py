@@ -1,19 +1,22 @@
 import re, travispy, warnings
 from collections import defaultdict
 from git import Branch
+from lazy import lazy
 from multiprocessing.pool import ThreadPool
 from travispy import TravisPy
-from utils import Sh, ShError, lazy
+from utils import Sh, ShError
 
 class TravisClient(object):
 
   SLUG_REGEX = re.compile('^git[@]github[.]com:(.*)[.]git$')
 
   @lazy
+  @property
   def _githubToken(self):
     return Sh('git', 'config', 'github.token').next()
 
   @lazy
+  @property
   def _remoteSlugs(self):
     """Remote 'slug' of any GitHub repos, keyed by remote name."""
     try:
@@ -32,6 +35,7 @@ class TravisClient(object):
       raise
 
   @lazy
+  @property
   def _remotesByBranchName(self):
     remotes = defaultdict(set)
     for remoteBranch in Branch.REMOTES:
@@ -40,13 +44,13 @@ class TravisClient(object):
         remotes[branchName].add(remote)
     return remotes
 
-  @lazy
   def _travis(self):
     with warnings.catch_warnings():
       warnings.filterwarnings('ignore', message='.*InsecurePlatformWarning.*')
       return TravisPy.github_auth(self._githubToken)
 
   @lazy
+  @property
   def _ciStatuses(self):
     if not self._remotesByBranchName:
       return defaultdict(dict)
