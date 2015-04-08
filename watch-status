@@ -1,7 +1,9 @@
 #!/usr/local/bin/python
 import git, os.path, signal, sys, threading, watchdog.events, watchdog.observers
+from collections import namedtuple
 from datetime import datetime, timedelta
 from itertools import islice
+from lazy import lazy
 from utils import Sh
 
 # wait(None) blocks signals like KeyboardInterrupt
@@ -70,9 +72,10 @@ class GitLockWatcher(watchdog.events.FileSystemEventHandler):
       self._lock()
 
 class GitFilesWatcher(watchdog.events.FileSystemEventHandler):
-  def __init__(self):
+  def __init__(self, callback = None):
     self.observer = None
     self._modified = threading.Event()
+    self.callback = callback or (lambda : None)
 
   def await_modification(self):
     while not self._modified.wait(INDEFINITELY):
@@ -102,11 +105,24 @@ class GitFilesWatcher(watchdog.events.FileSystemEventHandler):
       if path.startswith(self.gitdir):
         if path in self.gitwatched:
           self._modified.set()
+          self.callback()
       else:
         self._modified.set()
+        self.callback()
 
-def showStatus():
-  rows, columns = [int(v) for v in str(Sh('stty', 'size')).split()]
+@lazy
+def git_status():
+  try:
+    git_status.file_watcher
+  except AttributeError:
+    git_status.file_watcher = GitFilesWatcher(git_status.invalidate).__enter__()
+    git_status.git_lock = GitLockWatcher()
+  git_status.git_lock.await_unlocked()
+  return list(Sh('git', 'status', '--porcelain', '--untracked-files=all'))
+
+@lazy
+def show_status():
+  rows, columns = window_size()
   sys.stdout.write('\x1b[0;0H\x1b[2J')
   sys.stdout.write('\x1b[1;33m')
   if git.Branch.HEAD is None:
@@ -114,37 +130,27 @@ def showStatus():
   else:
     sys.stdout.write('On %s' % git.Branch.HEAD.name)
   sys.stdout.write('\x1b[0m')
-  for line in islice(Sh('git', 'status', '--porcelain', '--untracked-files=all'), rows - 1):
+  for line in islice(git_status(), rows - 1):
     sys.stdout.write('\n')
     if len(line) > columns:
       line = line[0:4] + '...' + line[-(columns - 8):]
     sys.stdout.write(line)
   sys.stdout.flush()
 
-class ResizeException(BaseException):
-  pass
-
-class ResizeListener(object):
-  def __enter__(self):
-    signal.signal(signal.SIGWINCH, self._on_resize)
-    return self
-
-  def _on_resize(self, signalnum, stackframe):
-    raise ResizeException()
-
-  def __exit__(self, type, value, traceback):
-    signal.signal(signal.SIGWINCH, signal.SIG_IGN)
-    return type == ResizeException
+WindowSize = namedtuple('Size', 'rows columns')
+@lazy
+def window_size():
+  try:
+    window_size._inited
+  except AttributeError:
+    signal.signal(signal.SIGWINCH, lambda e, s : window_size.invalidate())
+    window_size._inited = True
+  return WindowSize(*[int(v) for v in str(Sh('stty', 'size')).split()])
 
 if __name__ == '__main__':
   assert sys.stdout.isatty()
   try:
-    with GitLockWatcher() as git_lock, GitFilesWatcher() as files:
-      while True:
-        with ResizeListener():
-          showStatus()
-          files.await_modification()
-        git_lock.await_unlocked()
+    show_status.continually()
   except KeyboardInterrupt:
     pass
 
