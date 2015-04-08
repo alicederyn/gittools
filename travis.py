@@ -58,18 +58,17 @@ class TravisClient(object):
         todos = [(branch, remote) 
                  for branch, remotes in self._remotesByBranchName.iteritems()
                  for remote in remotes]
-        def fetchStatus(todo):
-          branch, remote = todo
-          slug = self._remoteSlugs[remote]
-          try:
-            b = self._travis.branch(branch, slug)
-            status[branch][remote] = b.color
-          except travispy.errors.TravisError, e:
-            pass
         if todos:
-          # Eagerly perform lazy evaluation so it happens on the main thread
-          self._remoteSlugs
-          self._githubToken
+          travis = self._travis()
+          remoteSlugs = self._remoteSlugs
+          def fetchStatus(todo):
+            branch, remote = todo
+            slug = remoteSlugs[remote]
+            try:
+              b = travis.branch(branch, slug)
+              status[branch][remote] = b.color
+            except travispy.errors.TravisError, e:
+              pass
           pool.map(fetchStatus, todos)
         return status
     except IOError:
