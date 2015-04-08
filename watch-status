@@ -74,16 +74,7 @@ class GitLockWatcher(watchdog.events.FileSystemEventHandler):
 class GitFilesWatcher(watchdog.events.FileSystemEventHandler):
   def __init__(self, callback = None):
     self.observer = None
-    self._modified = threading.Event()
     self.callback = callback or (lambda : None)
-
-  def await_modification(self):
-    while not self._modified.wait(INDEFINITELY):
-      pass
-    self._modified.clear()
-
-  def clear(self):
-    self._modified.clear()
 
   def __enter__(self):
     assert self.observer is None
@@ -104,10 +95,8 @@ class GitFilesWatcher(watchdog.events.FileSystemEventHandler):
       path = os.path.normpath(event.src_path)
       if path.startswith(self.gitdir):
         if path in self.gitwatched:
-          self._modified.set()
           self.callback()
       else:
-        self._modified.set()
         self.callback()
 
 @lazy
