@@ -1,6 +1,14 @@
 import threading, weakref
+from collections import deque
 
 __all__ = ['lazy']
+
+MAIN_THREAD = threading.current_thread()
+evaluation_stack = []
+invalidation_queue = deque()
+invalidation_event = threading.Event()
+
+invalidation_event.invalidate = invalidation_event.set
 
 def lazy(object):
   if isinstance(object, classmethod):
@@ -14,43 +22,30 @@ def lazy(object):
   else:
     return LazyAttribute(object)
 
-class LocallyEvaluating(threading.local):
-  evaluating = None
-  _after_evaluation = []
-
-  def invalidate_after_evaluation(self, lazyObject):
-    if not self.evaluating:
-      raise ValueError()
-    self._after_evaluation.append(lazyObject)
-
-_locally = LocallyEvaluating()
-
 class LazyEvaluationContext(object):
   def __init__(self, lazyObject):
     self.lazyObject = lazyObject
 
   def __enter__(self):
-    self._wasEvaluating = _locally.evaluating
-    _locally.evaluating = self.lazyObject
+    assert threading.current_thread() == MAIN_THREAD
+    evaluation_stack.append(self.lazyObject)
     return self
 
   def __exit__(self, type, value, traceback):
-    _locally.evaluating = self._wasEvaluating
-    if _locally.evaluating is None:
-      while _locally._after_evaluation:
-        _locally._after_evaluation.pop().invalidate()
+    evaluation_stack.pop()
+    if not evaluation_stack:
+      while invalidation_queue:
+        invalidation_queue.pop().invalidate()
 
 class LazyComputation(object):
   def invalidate(self):
-    try:
-      _locally.invalidate_after_evaluation(self)
+    if not hasattr(self, '_value'):
       return
-    except ValueError:
-      pass
-    try:
-      del self._value
-    except AttributeError:
-      pass
+    if threading.current_thread() != MAIN_THREAD or evaluation_stack:
+      invalidation_queue.append(self)
+      invalidation_event.set()
+      return
+    del self._value
     try:
       refs = tuple(self._refs)
     except AttributeError:
@@ -64,10 +59,11 @@ class LazyComputation(object):
     self._value = (value, None)
 
   def get(self, f, *args):
-    if _locally.evaluating is not None:
+    assert threading.current_thread() == MAIN_THREAD
+    if evaluation_stack:
       if not hasattr(self, '_refs'):
         self._refs = weakref.WeakSet()
-      self._refs.add(_locally.evaluating)
+      self._refs.add(evaluation_stack[-1])
     try:
       value, e = self._value
     except AttributeError:
@@ -83,20 +79,6 @@ class LazyComputation(object):
       raise e
     return value
 
-class InvalidationEvent():
-  def __init__(self):
-    self.event = threading.Event()
-
-  def clear(self):
-    self.event.clear()
-
-  def invalidate(self):
-    self.event.set()
-
-  def wait(self):
-    while not self.event.is_set():
-      self.event.wait(99999)
-
 class LazyFunction(object):
   def __init__(self, func):
     self.__func__ = func
@@ -111,12 +93,14 @@ class LazyFunction(object):
     self._value.invalidate()
 
   def continually(self):
-    event = InvalidationEvent()
     while True:
-      with LazyEvaluationContext(event):
+      invalidation_event.clear()
+      while invalidation_queue:
+        invalidation_queue.pop().invalidate()
+      with LazyEvaluationContext(invalidation_event):
         self()
-      event.wait()
-      event.clear()
+      while not invalidation_event.is_set():
+        invalidation_event.wait(99999)
 
 class LazyAttribute(object):
   """Attribute with lazy propagation on updates."""
