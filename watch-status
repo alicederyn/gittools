@@ -2,6 +2,7 @@
 import git, os.path, signal, sys, threading, watchdog.events, watchdog.observers
 from collections import namedtuple
 from datetime import datetime, timedelta
+from fnmatch import fnmatch
 from itertools import islice
 from lazy import lazy
 from utils import Sh
@@ -78,8 +79,8 @@ class GitFilesWatcher(watchdog.events.FileSystemEventHandler):
 
   def __enter__(self):
     assert self.observer is None
-    self.gitdir = '.git/'
-    self.gitwatched = frozenset(('.git/index', '.git/HEAD'))
+    self.exclude = frozenset(['.git/*'])
+    self.include = frozenset(['.git/index', '.git/HEAD', '.git/refs/heads/*'])
     self.observer = watchdog.observers.Observer()
     self.observer.schedule(self, '.', recursive = True)
     self.observer.start()
@@ -93,10 +94,9 @@ class GitFilesWatcher(watchdog.events.FileSystemEventHandler):
   def on_any_event(self, event):
     if not event.is_directory:
       path = os.path.normpath(event.src_path)
-      if path.startswith(self.gitdir):
-        if path in self.gitwatched:
-          self.callback()
-      else:
+      any_excluded = any(fnmatch(path, pat) for pat in self.exclude)
+      any_included = any(fnmatch(path, pat) for pat in self.include)
+      if any_included or not any_excluded:
         self.callback()
 
 @lazy
