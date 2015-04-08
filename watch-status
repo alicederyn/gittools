@@ -118,6 +118,7 @@ def git_status():
     git_status.file_watcher = GitFilesWatcher(git_status.invalidate).__enter__()
     git_status.git_lock = GitLockWatcher()
   git_status.git_lock.await_unlocked()
+  git.Branch.clear_cache()
   return list(Sh('git', 'status', '--porcelain', '--untracked-files=all'))
 
 @lazy
