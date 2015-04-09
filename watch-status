@@ -72,24 +72,22 @@ class GitLockWatcher(watchdog.events.FileSystemEventHandler):
     if event.dest_path == self.lockfile:
       self._lock()
 
-class GitFilesWatcher(watchdog.events.FileSystemEventHandler):
-  def __init__(self, callback = None):
-    self.observer = None
-    self.callback = callback or (lambda : None)
+@lazy
+class git_status(watchdog.events.FileSystemEventHandler):
+  def __call__(self):
+    self._git_lock.await_unlocked()
+    git.Branch.clear_cache()
+    return list(Sh('git', 'status', '--porcelain', '--untracked-files=all'))
 
-  def __enter__(self):
-    assert self.observer is None
+  def watch(self, callback):
+    self.callback = callback
     self.exclude = frozenset(['.git/*'])
     self.include = frozenset(['.git/index', '.git/HEAD', '.git/refs/heads/*'])
     self.observer = watchdog.observers.Observer()
     self.observer.schedule(self, '.', recursive = True)
     self.observer.start()
-    return self
-
-  def __exit__(self, type, value, traceback):
-    self.observer.stop()
-    #self.observer.join()
-    self.observer = None
+    self._git_lock = GitLockWatcher()
+    self._git_lock.__enter__()
 
   def on_any_event(self, event):
     if not event.is_directory:
@@ -99,16 +97,11 @@ class GitFilesWatcher(watchdog.events.FileSystemEventHandler):
       if any_included or not any_excluded:
         self.callback()
 
-@lazy
-def git_status():
-  try:
-    git_status.file_watcher
-  except AttributeError:
-    git_status.file_watcher = GitFilesWatcher(git_status.invalidate).__enter__()
-    git_status.git_lock = GitLockWatcher()
-  git_status.git_lock.await_unlocked()
-  git.Branch.clear_cache()
-  return list(Sh('git', 'status', '--porcelain', '--untracked-files=all'))
+  def unwatch(self):
+    self.observer.stop()
+    #self.observer.join()
+    self._git_lock.__exit__(None, None, None)
+    self._git_lock = None
 
 @lazy
 def show_status():
