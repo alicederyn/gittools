@@ -43,6 +43,35 @@ def test_function():
   assert i[0] == 2
   assert 2 == foo()
 
+def test_function_type():
+  foo_instances = []
+  @lazy
+  class foo():
+    def __init__(self):
+      self.i = 0
+      foo_instances.append(self)
+
+    def watch(self, callback):
+      self.callback = callback
+
+    def __call__(self):
+      self.i += 1
+      return self.i
+  assert len(foo_instances) == 1
+  assert foo_instances[0].i == 0
+  assert not hasattr(foo_instances[0], 'callback')
+  assert foo() == 1
+  assert foo_instances[0].i == 1
+  assert hasattr(foo_instances[0], 'callback')
+  assert foo() == 1
+  foo_instances[0].callback()
+  assert foo_instances[0].i == 1
+  assert foo() == 2
+  assert foo_instances[0].i == 2
+  assert foo() == 2
+  assert foo_instances[0].i == 2
+  assert len(foo_instances) == 1
+
 def test_independent_attributes():
   class Foo(object):
     bar = lazy(1)

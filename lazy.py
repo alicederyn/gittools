@@ -17,6 +17,8 @@ def lazy(object):
     return LazyStaticProperty(object.__func__)
   elif isinstance(object, property):
     return LazyProperty(object.fget)
+  elif isinstance(object, type) or str(type(object)) == "<type 'classobj'>":
+    return LazyFunctionType(object)
   elif hasattr(object, '__call__'):
     return LazyFunction(object)
   else:
@@ -80,10 +82,10 @@ class LazyComputation(object):
     return value
 
 class LazyFunction(object):
-  def __init__(self, func):
+  def __init__(self, func, name = None, doc = None):
     self.__func__ = func
-    self.__name__ = func.__name__
-    self.__doc__ = func.__doc__
+    self.__name__ = name if name is not None else func.__name__
+    self.__doc__ = doc if name is not None else func.__doc__
     self._value = LazyComputation()
 
   def __call__(self):
@@ -101,6 +103,17 @@ class LazyFunction(object):
         self()
       while not invalidation_event.is_set():
         invalidation_event.wait(99999)
+
+class LazyFunctionType(LazyFunction):
+  def __init__(self, ftype):
+    LazyFunction.__init__(self, ftype(), ftype.__name__, ftype.__doc__)
+    self._inited = False
+
+  def __call__(self):
+    if not self._inited:
+      self.__func__.watch(self.invalidate)
+      self._inited = True
+    return LazyFunction.__call__(self)
 
 class LazyAttribute(object):
   """Attribute with lazy propagation on updates."""
