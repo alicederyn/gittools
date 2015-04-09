@@ -49,34 +49,30 @@ class Branch(object):
           pass
 
   @lazy
-  @classmethod
-  def HEAD(cls):
+  def HEAD():
     """The current HEAD branch, or None if head is detached."""
     try:
-      return cls(revparse("--abbrev-ref", "HEAD"))
+      return Branch(revparse("--abbrev-ref", "HEAD"))
     except ValueError:
       return None
 
   @lazy
-  @classmethod
-  def ALL(cls):
+  def ALL():
     """The set of all (local) branches."""
     names = revparse("--abbrev-ref", "--branches").splitlines()
-    return frozenset(cls(name) for name in names)
+    return frozenset(Branch(name) for name in names)
 
   @lazy
-  @classmethod
-  def REMOTES(cls):
+  def REMOTES():
     """The set of all remote branches that have a local branch of the same name."""
     names = revparse("--abbrev-ref", "--remotes").splitlines()
-    locals = frozenset(b.name for b in cls.ALL)
-    return frozenset(cls(name) for name in names if name.split('/', 1)[-1] in locals)
+    locals = frozenset(b.name for b in Branch.ALL)
+    return frozenset(Branch(name) for name in names if name.split('/', 1)[-1] in locals)
 
   @lazy
-  @classmethod
-  def _REF_LOGS(cls):
+  def _REF_LOGS():
     raw = {}
-    for b in cls.ALL:
+    for b in Branch.ALL:
       try:
         raw[b] = Sh("git", "log", "-g", "%s@{now}" % b.name, "--date=raw", "--format=%gd %H")
       except ShError:
