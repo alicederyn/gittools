@@ -2,14 +2,7 @@ import threading, weakref
 from collections import deque
 from functools import update_wrapper
 
-__all__ = ['lazy']
-
-MAIN_THREAD = threading.current_thread()
-evaluation_stack = []
-invalidation_queue = deque()
-invalidation_event = threading.Event()
-
-invalidation_event.invalidate = invalidation_event.set
+__all__ = ['lazy', 'lazy_invalidation']
 
 def lazy(object):
   if isinstance(object, classmethod):
@@ -24,6 +17,50 @@ def lazy(object):
     return update_wrapper(LazyFunction(object), object)
   else:
     return LazyAttribute(object)
+
+def lazy_invalidation():
+  return LazyInvalidation()
+
+class LazyConstants(object):
+  def __init__(self):
+    self._watchable_objects = weakref.WeakSet()
+
+  def _watch_object(self, watchable_object):
+    self._watchable_objects.add(watchable_object)
+
+  def _invalidate_all(self):
+    for watchable_object in self._watchable_objects:
+      watchable_object.invalidate()
+    self._watchable_objects.clear()
+
+class LazyInvalidation(object):
+  def __enter__(self):
+    assert threading.current_thread() == MAIN_THREAD
+    assert not evaluation_stack
+    self._watchable_objects = weakref.WeakSet()
+    global invalidation_strategy
+    invalidation_strategy._invalidate_all()
+    invalidation_strategy = self
+
+  def _watch_object(self, watchable_object):
+    self._watchable_objects.add(watchable_object)
+    try:
+      watchable_object.__func__.watch(watchable_object.invalidate)
+    except AttributeError:
+      pass
+
+  def __exit__(self, type, value, traceback):
+    global invalidation_strategy
+    invalidation_strategy = LazyConstants()
+    for watchable_object in self._watchable_objects:
+      try:
+        watchable_object.__func__.unwatch()
+      except AttributeError:
+        pass
+      watchable_object.invalidate()
+
+  def _invalidate_all(self):
+    raise TypeError('Cannot nest lazy_invalidation contexts')
 
 class LazyEvaluationContext(object):
   def __init__(self, lazyObject):
@@ -113,7 +150,7 @@ class LazyFunctionType(LazyFunction):
 
   def __call__(self):
     if not self._inited:
-      self.__func__.watch(self.invalidate)
+      invalidation_strategy._watch_object(self)
       self._inited = True
     return LazyFunction.__call__(self)
 
@@ -190,4 +227,12 @@ class LazyStaticProperty(object):
 
   def __set__(self, obj, value):
     raise AttributeError()
+
+MAIN_THREAD = threading.current_thread()
+evaluation_stack = []
+invalidation_queue = deque()
+invalidation_strategy = LazyConstants()
+invalidation_event = threading.Event()
+
+invalidation_event.invalidate = invalidation_event.set
 

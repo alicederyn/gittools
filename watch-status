@@ -4,7 +4,7 @@ from collections import namedtuple
 from datetime import datetime, timedelta
 from fnmatch import fnmatch
 from itertools import islice
-from lazy import lazy
+from lazy import lazy, lazy_invalidation
 from utils import Sh
 
 # wait(None) blocks signals like KeyboardInterrupt
@@ -144,7 +144,8 @@ class window_size:
 if __name__ == '__main__':
   assert sys.stdout.isatty()
   try:
-    show_status.continually()
+    with lazy_invalidation():
+      show_status.continually()
   except KeyboardInterrupt:
     print
 

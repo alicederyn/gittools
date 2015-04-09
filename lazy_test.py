@@ -1,4 +1,4 @@
-from lazy import lazy
+from lazy import lazy, lazy_invalidation, invalidation_strategy, LazyInvalidation
 
 def test_attribute_name():
   class Foo(object):
@@ -43,7 +43,7 @@ def test_function():
   assert i[0] == 2
   assert 2 == foo()
 
-def test_function_type():
+def test_function_type_no_invalidation():
   foo_instances = []
   @lazy
   class foo():
@@ -62,15 +62,39 @@ def test_function_type():
   assert not hasattr(foo_instances[0], 'callback')
   assert foo() == 1
   assert foo_instances[0].i == 1
-  assert hasattr(foo_instances[0], 'callback')
+  assert not hasattr(foo_instances[0], 'callback')
   assert foo() == 1
-  foo_instances[0].callback()
-  assert foo_instances[0].i == 1
-  assert foo() == 2
-  assert foo_instances[0].i == 2
-  assert foo() == 2
-  assert foo_instances[0].i == 2
   assert len(foo_instances) == 1
+
+def test_function_type_with_invalidation():
+  foo_instances = []
+  @lazy
+  class foo():
+    def __init__(self):
+      self.i = 0
+      foo_instances.append(self)
+
+    def watch(self, callback):
+      self.callback = callback
+
+    def __call__(self):
+      self.i += 1
+      return self.i
+  with lazy_invalidation():
+    assert len(foo_instances) == 1
+    assert foo_instances[0].i == 0
+    assert not hasattr(foo_instances[0], 'callback')
+    assert foo() == 1
+    assert foo_instances[0].i == 1
+    assert hasattr(foo_instances[0], 'callback')
+    assert foo() == 1
+    foo_instances[0].callback()
+    assert foo_instances[0].i == 1
+    assert foo() == 2
+    assert foo_instances[0].i == 2
+    assert foo() == 2
+    assert foo_instances[0].i == 2
+    assert len(foo_instances) == 1
 
 def test_independent_attributes():
   class Foo(object):
@@ -150,7 +174,7 @@ def test_staticproperty():
   assert 1 == Foo.BAR
   assert 1 == Foo.BAR
 
-def test_staticproperty_function_type():
+def test_staticproperty_function_type_no_invalidation():
   foo_instances = []
   class Foo():
     @lazy
@@ -174,13 +198,42 @@ def test_staticproperty_function_type():
   assert not hasattr(foo_instances[0], 'callback')
   assert foo.FOO == 1
   assert foo_instances[0].i == 1
-  assert hasattr(foo_instances[0], 'callback')
+  assert not hasattr(foo_instances[0], 'callback')
   assert foo.FOO == 1
-  foo_instances[0].callback()
-  assert foo_instances[0].i == 1
-  assert foo.FOO == 2
-  assert foo_instances[0].i == 2
-  assert foo.FOO == 2
-  assert foo_instances[0].i == 2
   assert len(foo_instances) == 1
+
+def test_staticproperty_function_type_with_invalidation():
+  foo_instances = []
+  class Foo():
+    @lazy
+    class FOO():
+      def __init__(self):
+        self.i = 0
+        foo_instances.append(self)
+
+      def watch(self, callback):
+        self.callback = callback
+
+      def __call__(self):
+        self.i += 1
+        return self.i
+  with lazy_invalidation():
+    assert len(foo_instances) == 1
+    assert foo_instances[0].i == 0
+    assert not hasattr(foo_instances[0], 'callback')
+    foo = Foo()
+    assert len(foo_instances) == 1
+    assert foo_instances[0].i == 0
+    assert not hasattr(foo_instances[0], 'callback')
+    assert foo.FOO == 1
+    assert foo_instances[0].i == 1
+    assert hasattr(foo_instances[0], 'callback')
+    assert foo.FOO == 1
+    foo_instances[0].callback()
+    assert foo_instances[0].i == 1
+    assert foo.FOO == 2
+    assert foo_instances[0].i == 2
+    assert foo.FOO == 2
+    assert foo_instances[0].i == 2
+    assert len(foo_instances) == 1
 
