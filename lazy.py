@@ -1,5 +1,6 @@
 import threading, weakref
 from collections import deque
+from functools import update_wrapper
 
 __all__ = ['lazy']
 
@@ -12,15 +13,15 @@ invalidation_event.invalidate = invalidation_event.set
 
 def lazy(object):
   if isinstance(object, classmethod):
-    return LazyClassProperty(object.__func__)
+    return update_wrapper(LazyClassProperty(object.__func__), object.__func__)
   elif isinstance(object, staticmethod):
-    return LazyStaticProperty(object.__func__)
+    return update_wrapper(LazyStaticProperty(object.__func__), object.__func__)
   elif isinstance(object, property):
-    return LazyProperty(object.fget)
+    return update_wrapper(LazyProperty(object.fget), object.fget)
   elif isinstance(object, type) or str(type(object)) == "<type 'classobj'>":
-    return LazyFunctionType(object)
+    return update_wrapper(LazyFunctionType(object), object)
   elif hasattr(object, '__call__'):
-    return LazyFunction(object)
+    return update_wrapper(LazyFunction(object), object)
   else:
     return LazyAttribute(object)
 
@@ -82,10 +83,8 @@ class LazyComputation(object):
     return value
 
 class LazyFunction(object):
-  def __init__(self, func, name = None, doc = None):
+  def __init__(self, func):
     self.__func__ = func
-    self.__name__ = name if name is not None else func.__name__
-    self.__doc__ = doc if name is not None else func.__doc__
     self._value = LazyComputation()
 
   def __call__(self):
@@ -106,7 +105,7 @@ class LazyFunction(object):
 
 class LazyFunctionType(LazyFunction):
   def __init__(self, ftype):
-    LazyFunction.__init__(self, ftype(), ftype.__name__, ftype.__doc__)
+    LazyFunction.__init__(self, ftype())
     self._inited = False
 
   def __call__(self):
@@ -150,8 +149,6 @@ class LazyProperty(object):
   """Lazily-calculated property."""
   def __init__(self, func):
     self._func = func
-    self.__name__ = func.__name__
-    self.__doc__ = func.__doc__
 
   def __get__(self, obj, objtype=None):
     if obj is None:
@@ -165,8 +162,6 @@ class LazyClassProperty(object):
   """Lazily-calculated class property."""
   def __init__(self, func):
     self._func = func
-    self.__name__ = func.__name__
-    self.__doc__ = func.__doc__
     self._value = LazyComputation()
 
   def __get__(self, obj, objtype=None):
@@ -182,8 +177,6 @@ class LazyStaticProperty(object):
   """Lazily-calculated static property."""
   def __init__(self, func):
     self._func = func
-    self.__name__ = func.__name__
-    self.__doc__ = func.__doc__
     self._value = LazyComputation()
 
   def __get__(self, obj, objtype=None):
