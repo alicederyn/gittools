@@ -140,3 +140,47 @@ def test_staticmethod_cached():
   assert 1 == Foo.BAR
   assert 1 == Foo.BAR
 
+def test_staticproperty():
+  i = [0]
+  class Foo(object):
+    @lazy
+    def BAR():
+      i[0] += 1
+      return i[0]
+  assert 1 == Foo.BAR
+  assert 1 == Foo.BAR
+
+def test_staticproperty_function_type():
+  foo_instances = []
+  class Foo():
+    @lazy
+    class FOO():
+      def __init__(self):
+        self.i = 0
+        foo_instances.append(self)
+
+      def watch(self, callback):
+        self.callback = callback
+
+      def __call__(self):
+        self.i += 1
+        return self.i
+  assert len(foo_instances) == 1
+  assert foo_instances[0].i == 0
+  assert not hasattr(foo_instances[0], 'callback')
+  foo = Foo()
+  assert len(foo_instances) == 1
+  assert foo_instances[0].i == 0
+  assert not hasattr(foo_instances[0], 'callback')
+  assert foo.FOO == 1
+  assert foo_instances[0].i == 1
+  assert hasattr(foo_instances[0], 'callback')
+  assert foo.FOO == 1
+  foo_instances[0].callback()
+  assert foo_instances[0].i == 1
+  assert foo.FOO == 2
+  assert foo_instances[0].i == 2
+  assert foo.FOO == 2
+  assert foo_instances[0].i == 2
+  assert len(foo_instances) == 1
+
