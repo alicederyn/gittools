@@ -129,13 +129,24 @@ def show_status():
 
 WindowSize = namedtuple('Size', 'rows columns')
 @lazy
-def window_size():
-  try:
-    window_size._inited
-  except AttributeError:
-    signal.signal(signal.SIGWINCH, lambda e, s : window_size.invalidate())
-    window_size._inited = True
-  return WindowSize(*[int(v) for v in str(Sh('stty', 'size')).split()])
+class window_size:
+  def __call__(self):
+    return WindowSize(*[int(v) for v in str(Sh('stty', 'size')).split()])
+
+  def watch(self, callback):
+    self._callback = callback
+    self._next_signal = signal.signal(signal.SIGWINCH, self.resize_event)
+
+  def resize_event(self, signal_num, stack):
+    try:
+      self._next_signal()
+    except TypeError:
+      pass
+    finally:
+      self._callback()
+
+  def unwatch(self):
+    signal.signal(signal.SIGWINCH, self._next_signal)
 
 if __name__ == '__main__':
   assert sys.stdout.isatty()
