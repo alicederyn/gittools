@@ -196,13 +196,13 @@ class Branch(object):
     except ValueError:
       return None
 
-  @lazy
+  @lazy_git_function(watching = ['refs/heads/*'])
   def ALL():
     """The set of all (local) branches."""
     names = revparse("--abbrev-ref", "--branches").splitlines()
     return frozenset(Branch(name) for name in names)
 
-  @lazy
+  @lazy_git_function(watching = ['refs/remotes/*'])
   def REMOTES():
     """The set of all remote branches that have a local branch of the same name."""
     names = revparse("--abbrev-ref", "--remotes").splitlines()
