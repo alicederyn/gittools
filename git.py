@@ -1,10 +1,12 @@
 import os.path, re, threading, watchdog.events, watchdog.observers
 from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
+from fnmatch import fnmatch
 from lazy import lazy
 from utils import first, LazyList, Sh, ShError
 
-__all__ = ['revparse', 'getUpstreamBranch', 'git_dir', 'Branch', 'GitLockWatcher']
+__all__ = [ 'revparse', 'getUpstreamBranch', 'git_dir', 'Branch', 'GitLockWatcher',
+            'LazyGitFunction' ]
 
 # wait(None) blocks signals like KeyboardInterrupt
 # Use wait(99999) instead
@@ -91,6 +93,62 @@ def getUpstreamBranch(branch):
 
 RefLine = namedtuple('RefLine', 'timestamp hash')
 Commit = namedtuple("Commit", "hash subject merges")
+
+class LazyGitFunction(watchdog.events.FileSystemEventHandler):
+  """
+  Base class for functions that provide information about a git repository.
+
+  Monitors root_dir (the current .git dir by default) and its subdirectories for
+      file-system events.
+  Events that match *any* include_glob will trigger an invalidation.
+  If any exclude_globs are provided, events that *do not* match any of them will trigger an
+      invalidation.
+  If no globs are provided, *all* events trigger an invalidation.
+  All globs are relative to root_dir.
+  """
+  def __init__(self,
+               root_dir = None,
+               exclude_globs = (),
+               include_globs = ()):
+    self._root_dir = os.path.abspath(root_dir or git_dir())
+    self._exclude_globs = frozenset(exclude_globs)
+    self._include_globs = frozenset(include_globs)
+    self._recursive = bool(self._exclude_globs
+                           or not self._include_globs
+                           or any('*' in g for g in self._include_globs))
+
+  def watch(self, callback):
+    self._callback = callback
+    self._observer = watchdog.observers.Observer()
+    self._observer.schedule(self, self._root_dir, recursive = self._recursive)
+    self._observer.start()
+
+  def unwatch(self):
+    self._observer.stop()
+    #self._observer.join()
+
+  def path_matches(self, rel_path):
+    if not self._exclude_globs and not self._include_globs:
+      return True
+    any_included = any(fnmatch(rel_path, g) for g in self._include_globs)
+    if any_included:
+      return True
+    any_excluded = any(fnmatch(rel_path, g) for g in self._exclude_globs)
+    if self._exclude_globs and not any_excluded:
+      return True
+    return False
+
+  def on_any_event(self, event):
+    if event.is_directory:
+      pass
+    elif self.path_matches(os.path.relpath(event.src_path, self._root_dir)):
+      self._callback()
+    else:
+      try:
+        if self.path_matches(os.path.relpath(event.dest_path, self._root_dir)):
+          self._callback()
+      except AttributeError:
+        pass
 
 class Branch(object):
   _BRANCHES_BY_ID = { }
