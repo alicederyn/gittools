@@ -237,7 +237,12 @@ class Watcher(watchdog.events.FileSystemEventHandler):
     self.observer = None
 
   def on_any_event(self, event):
-    if any(fnmatch(event.src_path, pattern) for pattern in self.patterns):
+    src_match = any(fnmatch(event.src_path, pattern) for pattern in self.patterns)
+    try:
+      dest_match = any(fnmatch(event.dest_path, pattern) for pattern in self.patterns)
+    except AttributeError:
+      dest_match = False
+    if src_match or dest_match:
       self.lastEvent = datetime.utcnow()
       self.event.set()
 

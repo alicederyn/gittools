@@ -1,14 +1,79 @@
-import re
+import os.path, re, threading, watchdog.events, watchdog.observers
 from collections import defaultdict, namedtuple
-from datetime import datetime
+from datetime import datetime, timedelta
 from lazy import lazy
 from utils import first, LazyList, Sh, ShError
 
-__all__ = ['revparse', 'getUpstreamBranch', 'git_dir', 'Branch']
+__all__ = ['revparse', 'getUpstreamBranch', 'git_dir', 'Branch', 'GitLockWatcher']
+
+# wait(None) blocks signals like KeyboardInterrupt
+# Use wait(99999) instead
+INDEFINITELY = 99999
+
+def fractionalSeconds(delta):
+  return delta.total_seconds() + delta.microseconds / 10000000.0
 
 @lazy
 def git_dir():
   return revparse("--git-dir")
+
+class GitLockWatcher(watchdog.events.FileSystemEventHandler):
+  def __init__(self, latency = timedelta(seconds = 0.2)):
+    self.lockfile = os.path.join(git_dir(), 'index.lock')
+    self.latency = latency
+    self.observer = None
+    self._unlock_timestamp = datetime.utcfromtimestamp(0)
+    self._unlocked = threading.Condition()
+
+  @property
+  def is_locked(self):
+    assert self.observer is not None
+    return self._unlock_timestamp is not None and self._unlock_timestamp <= datetime.utcnow()
+
+  def await_unlocked(self):
+    while True:
+      timeout = (fractionalSeconds(self._unlock_timestamp - datetime.utcnow())
+                 if self._unlock_timestamp else INDEFINITELY)
+      if timeout is not None and timeout <= 0:
+        return
+      with self._unlocked:
+        self._unlocked.wait(timeout)
+
+  def _lock(self):
+    self._unlock_timestamp = None
+
+  def _unlock(self):
+    with self._unlocked:
+      self._unlock_timestamp = datetime.utcnow() + self.latency
+      self._unlocked.notify_all()
+
+  def __enter__(self):
+    assert self.observer is None
+    self.observer = watchdog.observers.Observer()
+    self.observer.schedule(self, '.git', recursive = False)
+    self.observer.start()
+    if os.path.exists(self.lockfile):
+      self._lock()
+    return self
+
+  def __exit__(self, type, value, traceback):
+    self.observer.stop()
+    self.observer.join()
+    self.observer = None
+
+  def on_created(self, event):
+    if event.src_path == self.lockfile:
+      self._lock()
+
+  def on_deleted(self, event):
+    if event.src_path == self.lockfile:
+      self._unlock()
+
+  def on_moved(self, event):
+    if event.src_path == self.lockfile:
+      self._unlock()
+    if event.dest_path == self.lockfile:
+      self._lock()
 
 def revparse(*args):
   """Returns the result of `git rev-parse *args`."""
