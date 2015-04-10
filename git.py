@@ -4,7 +4,11 @@ from datetime import datetime
 from lazy import lazy
 from utils import first, LazyList, Sh, ShError
 
-__all__ = ['revparse', 'getUpstreamBranch', 'Branch']
+__all__ = ['revparse', 'getUpstreamBranch', 'git_dir', 'Branch']
+
+@lazy
+def git_dir():
+  return revparse("--git-dir")
 
 def revparse(*args):
   """Returns the result of `git rev-parse *args`."""

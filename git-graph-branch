@@ -28,7 +28,7 @@ from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from docopt import docopt
 from fnmatch import fnmatch
-from git import Branch, revparse
+from git import Branch, git_dir, revparse
 from layout import layout_to
 from itertools import chain, cycle, product
 from stash import Stash
@@ -269,7 +269,7 @@ def filesToWatch(gitdir):
   return [head, config, branches, remotes]
 
 def watchForChanges(waitToMerge, maxUpdateFreq, action):
-  gitdir = revparse("--git-dir")
+  gitdir = git_dir()
   with Watcher(gitdir, filesToWatch(gitdir), waitToMerge, maxUpdateFreq) as watcher:
     while True:
       Branch.clear_cache()
