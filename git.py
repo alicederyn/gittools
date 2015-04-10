@@ -188,7 +188,7 @@ class Branch(object):
         except AttributeError:
           pass
 
-  @lazy
+  @lazy_git_function(watching = ['HEAD'])
   def HEAD():
     """The current HEAD branch, or None if head is detached."""
     try:

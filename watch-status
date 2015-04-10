@@ -22,7 +22,6 @@ class git_status(LazyGitFunction):
 
   def __call__(self):
     self._git_lock.await_unlocked()
-    git.Branch.clear_cache()
     return list(Sh('git', 'status', '--porcelain', '--untracked-files=all'))
 
   def watch(self, callback):
