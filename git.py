@@ -2,6 +2,7 @@ import os.path, re, threading, watchdog.events, watchdog.observers
 from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from fnmatch import fnmatch
+from functools import update_wrapper
 from lazy import lazy
 from utils import first, LazyList, Sh, ShError
 
@@ -149,6 +150,18 @@ class LazyGitFunction(watchdog.events.FileSystemEventHandler):
           self._callback()
       except AttributeError:
         pass
+
+class LazyGitDecorator(LazyGitFunction):
+  def __init__(self, func, watching):
+    LazyGitFunction.__init__(self, include_globs = watching)
+    self.__func__ = func
+    update_wrapper(self, func)
+
+  def __call__(self):
+    return self.__func__()
+
+def lazy_git_function(watching):
+  return lambda func : lazy(LazyGitDecorator(func, watching))
 
 class Branch(object):
   _BRANCHES_BY_ID = { }
