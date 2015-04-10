@@ -21,7 +21,7 @@ def git_dir():
   return revparse("--git-dir")
 
 class GitLockWatcher(watchdog.events.FileSystemEventHandler):
-  def __init__(self, latency = timedelta(seconds = 0.2)):
+  def __init__(self, latency = timedelta(seconds = 0.5)):
     self.lockfile = os.path.join(git_dir(), 'index.lock')
     self.latency = latency
     self.observer = None
