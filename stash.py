@@ -2,6 +2,7 @@ import concurrent.futures.thread, getpass, json, keyring, posixpath, re, request
 from collections import Counter, defaultdict
 from git import Branch
 from itertools import count
+from lazy import lazy
 from utils import Sh, ShError
 
 class Stash(object):
@@ -28,9 +29,9 @@ class Stash(object):
           server : self._executor.submit(self._getServerStatsByBranch, server)
               for server in servers
       }
-      self._statsByBranch = None
     else:
-      self._statsByBranch = defaultdict(Counter)
+      self._executor = None
+      self._futuresByServer = {}
 
   STASH_REGEX = re.compile('^git[@](stash[^:]*):.*$')
 
@@ -124,12 +125,17 @@ class Stash(object):
         statsByBranch[branch].update(colorCodedStats)
     return statsByBranch
 
-  def ciStatus(self, branch):
-    if self._statsByBranch is None:
-      self._statsByBranch = defaultdict(Counter)
-      for serverStatsByBranch in self._futuresByServer.itervalues():
-        for b, stats in serverStatsByBranch.result().iteritems():
-          self._statsByBranch[b].update(stats)
+  @lazy
+  @property
+  def _statsByBranch(self):
+    statsByBranch = defaultdict(Counter)
+    for serverStatsByBranch in self._futuresByServer.itervalues():
+      for b, stats in serverStatsByBranch.result().iteritems():
+        statsByBranch[b].update(stats)
+    if self._executor:
       self._executor.shutdown()
+    return statsByBranch
+
+  def ciStatus(self, branch):
     return dict(zip(count(0), self._statsByBranch[branch.name].elements()))
 
