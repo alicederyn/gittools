@@ -115,11 +115,3 @@ def layout(branches):
   grid.reverse()
   return grid
 
-def layout_to(file, branches, label = lambda b : b.name):
-  grid = layout(branches)
-  for b, row in zip(branches, grid):
-    file.write(unicode(row).encode('UTF-8'))
-    file.write('  ')
-    file.write(label(b))
-    file.write('\n')
-

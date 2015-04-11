@@ -1,6 +1,6 @@
 # coding=utf-8
 import sys
-from layout import Row, layout, layout_to
+from layout import Row, layout
 from StringIO import StringIO
 from textwrap import dedent
 

@@ -27,15 +27,11 @@ from datetime import datetime, timedelta
 from docopt import docopt
 from fnmatch import fnmatch
 from git import Branch, git_dir, revparse
-from layout import layout_to
+from layout import layout
 from lazy import lazy, lazy_invalidation
 from itertools import chain, cycle, product
 from stash import Stash
 from travis import TravisClient
-
-def getBranches():
-  """Returns all branches, oldest first."""
-  return sorted(Branch.ALL, key = lambda b : b.modtime or datetime.fromtimestamp(1))
 
 def getRemotes():
   return frozenset(b.name for b in Branch.REMOTES)
@@ -117,12 +113,14 @@ class PriorityBranchIterator(object):
     del self._blockers[blocker]
     return blocker
 
-def localParents(b, remotes):
-  return [p for p in b.parents if not p.name in remotes]
+@lazy
+def layoutAllBranches():
+  branches = sorted(Branch.ALL, key = lambda b : b.modtime or datetime.fromtimestamp(1))
+  branches = tuple(PriorityBranchIterator(BranchBlockers(branches)))
+  return zip(branches, layout(branches))
 
 def printGraph(clearScreen = False, ciTypes = ()):
   ciTools = [ciType() for ciType in ciTypes]
-  branches = getBranches()
   remotes = getRemotes()
   remoteHashes = dict(zip(remotes, revparse(*remotes).splitlines()))
   localsWithRemotes = defaultdict(set)
@@ -177,9 +175,12 @@ def printGraph(clearScreen = False, ciTypes = ()):
       control('\x1b[K')
     return ""
 
-  layout_to(sys.stdout,
-            tuple(PriorityBranchIterator(BranchBlockers(branches))),
-            branchLabel)
+  for b, row in layoutAllBranches():
+    sys.stdout.write(unicode(row).encode('UTF-8'))
+    sys.stdout.write('  ')
+    branchLabel(b)
+    sys.stdout.write('\n')
+
   if clearScreen:
     control('\x1b[J')
     sys.stdout.flush()
