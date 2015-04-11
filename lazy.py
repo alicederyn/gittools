@@ -9,12 +9,15 @@ def lazy(object):
     return update_wrapper(LazyClassProperty(object.__func__), object.__func__)
   elif isinstance(object, staticmethod):
     return update_wrapper(LazyStaticProperty(object.__func__), object.__func__)
-  elif isinstance(object, property):
-    return update_wrapper(LazyProperty(object.fget), object.fget)
   elif isinstance(object, type) or str(type(object)) == "<type 'classobj'>":
-    return update_wrapper(LazyFunctionType(object), object)
+    return update_wrapper(LazyFunction(object()), object)
   elif hasattr(object, '__call__'):
     return update_wrapper(LazyFunction(object), object)
+  elif hasattr(object, '__get__'):
+    lazy_property = LazyProperty(object)
+    if hasattr(object, 'fget'):
+      update_wrapper(lazy_property, object.fget)
+    return lazy_property
   else:
     return LazyAttribute(object)
 
@@ -23,41 +26,43 @@ def lazy_invalidation():
 
 class LazyConstants(object):
   def __init__(self):
-    self._watchable_objects = weakref.WeakSet()
+    self._watchable_objects = set()
 
-  def _watch_object(self, watchable_object):
-    self._watchable_objects.add(watchable_object)
+  def _watch_object(self, object):
+    if object.watcher is not None:
+      self._watchable_objects.add(object)
 
   def _invalidate_all(self):
     for watchable_object in self._watchable_objects:
       watchable_object.invalidate()
+      watchable_object.inited = False
     self._watchable_objects.clear()
 
 class LazyInvalidation(object):
   def __enter__(self):
     assert threading.current_thread() == MAIN_THREAD
     assert not evaluation_stack
-    self._watchable_objects = weakref.WeakSet()
+    self._watchable_objects = set()
     global invalidation_strategy
     invalidation_strategy._invalidate_all()
     invalidation_strategy = self
 
-  def _watch_object(self, watchable_object):
-    self._watchable_objects.add(watchable_object)
-    try:
-      watchable_object.__func__.watch(watchable_object.invalidate)
-    except AttributeError:
-      pass
+  def _watch_object(self, object):
+    if object.watcher is not None:
+      self._watchable_objects.add(object)
+      object.watcher.watch(object.invalidate)
 
   def __exit__(self, type, value, traceback):
     global invalidation_strategy
     invalidation_strategy = LazyConstants()
     for watchable_object in self._watchable_objects:
       try:
-        watchable_object.__func__.unwatch()
+        watchable_object.watcher.unwatch()
       except AttributeError:
         pass
       watchable_object.invalidate()
+      watchable_object.inited = False
+    self._watchable_objects.clear()
 
   def _invalidate_all(self):
     raise TypeError('Cannot nest lazy_invalidation contexts')
@@ -77,7 +82,11 @@ class LazyEvaluationContext(object):
       while invalidation_queue:
         invalidation_queue.pop().invalidate()
 
-class LazyComputation(object):
+class LazyResult(object):
+  def __init__(self, watcher = None):
+    self.watcher = watcher
+    self.inited = False
+
   def invalidate(self):
     if not hasattr(self, '_value'):
       return
@@ -100,6 +109,9 @@ class LazyComputation(object):
 
   def get(self, f, *args):
     assert threading.current_thread() == MAIN_THREAD
+    if not self.inited:
+      invalidation_strategy._watch_object(self)
+      self.inited = True
     if evaluation_stack:
       if not hasattr(self, '_refs'):
         self._refs = weakref.WeakSet()
@@ -122,7 +134,10 @@ class LazyComputation(object):
 class LazyFunction(object):
   def __init__(self, func):
     self.__func__ = func
-    self._value = LazyComputation()
+    if hasattr(func, 'watch'):
+      self._value = LazyResult(func)
+    else:
+      self._value = LazyResult()
 
   def __call__(self):
     return self._value.get(self.__func__)
@@ -143,17 +158,6 @@ class LazyFunction(object):
       while not invalidation_event.is_set():
         invalidation_event.wait(99999)
 
-class LazyFunctionType(LazyFunction):
-  def __init__(self, ftype):
-    LazyFunction.__init__(self, ftype())
-    self._inited = False
-
-  def __call__(self):
-    if not self._inited:
-      invalidation_strategy._watch_object(self)
-      self._inited = True
-    return LazyFunction.__call__(self)
-
 class LazyAttribute(object):
   """Attribute with lazy propagation on updates."""
   def __init__(self, default):
@@ -171,7 +175,7 @@ class LazyAttribute(object):
         raise Exception('%s not found on %s', self, objtype)
 
   def _get_lazy_value(self, obj):
-    return obj.__dict__.setdefault(self.__name__, LazyComputation())
+    return obj.__dict__.setdefault(self.__name__, LazyResult())
 
   def __get__(self, obj, objtype):
     self._find_name(obj, objtype)
@@ -185,15 +189,37 @@ class LazyAttribute(object):
     lazy_value.invalidate()
     lazy_value.set(value)
 
+class Storage(object): pass
+
+class PropertyWatchWrapper(object):
+  def __init__(self, func, obj):
+    self.func = func
+    self.obj = obj
+    self.storage = Storage()
+
+  def watch(self, callback):
+    self.func.watch(self.obj, self.storage, callback)
+  
+  def unwatch(self):
+    self.func.unwatch(self.storage)
+
 class LazyProperty(object):
   """Lazily-calculated property."""
-  def __init__(self, func):
-    self._func = func
+  def __init__(self, delegate):
+    self.delegate = delegate
 
   def __get__(self, obj, objtype=None):
     if obj is None:
       return self
-    return obj.__dict__.setdefault(self.__name__, LazyComputation()).get(self._func, obj)
+    try:
+      lazy_result = obj.__dict__[self.__name__]
+    except KeyError:
+      if hasattr(self.delegate, 'watch'):
+        lazy_result = LazyResult(PropertyWatchWrapper(self.delegate, obj))
+      else:
+        lazy_result = LazyResult()
+      obj.__dict__[self.__name__] = lazy_result
+    return lazy_result.get(self.delegate.__get__, obj, objtype)
 
   def __set__(self, obj, value):
     raise AttributeError()
@@ -202,7 +228,7 @@ class LazyClassProperty(object):
   """Lazily-calculated class property."""
   def __init__(self, func):
     self._func = func
-    self._value = LazyComputation()
+    self._value = LazyResult()
 
   def __get__(self, obj, objtype=None):
     if obj is not None:
@@ -217,7 +243,7 @@ class LazyStaticProperty(object):
   """Lazily-calculated static property."""
   def __init__(self, func):
     self._func = func
-    self._value = LazyComputation()
+    self._value = LazyResult()
 
   def __get__(self, obj, objtype=None):
     if obj is not None:

@@ -1,3 +1,4 @@
+from itertools import count
 from lazy import lazy, lazy_invalidation, invalidation_strategy, LazyInvalidation
 
 def test_attribute_name():
@@ -173,6 +174,45 @@ def test_staticproperty():
       return i[0]
   assert 1 == Foo.BAR
   assert 1 == Foo.BAR
+
+def test_watchable_property():
+  values = count()
+  watched = {}
+  class Bar(property):
+    def __init__(self):
+      property.__init__(self, fget = self.getter)
+
+    def getter(self, obj):
+      if obj is None:
+        return self
+      return values.next()
+
+    def watch(self, obj, storage, callback):
+      watched[obj] = callback
+      storage.obj = obj
+
+    def unwatch(self, storage):
+      del watched[storage.obj]
+
+  class Foo(object):
+    BAR = lazy(Bar())
+
+  with lazy_invalidation():
+    assert hasattr(Foo.BAR, '__get__')
+    foo = Foo()
+    assert not watched
+    assert foo.BAR == 0
+    assert watched
+    callback = watched.itervalues().next()
+    assert foo.BAR == 0
+    callback()
+    assert foo.BAR == 1
+    assert foo.BAR == 1
+    callback()
+    assert foo.BAR == 2
+    assert foo.BAR == 2
+    assert watched
+  assert not watched
 
 def test_staticproperty_function_type_no_invalidation():
   foo_instances = []
