@@ -30,6 +30,7 @@ from docopt import docopt
 from fnmatch import fnmatch
 from git import Branch, git_dir, revparse
 from layout import layout_to
+from lazy import lazy, lazy_invalidation
 from itertools import chain, cycle, product
 from stash import Stash
 from travis import TravisClient
@@ -274,12 +275,8 @@ def filesToWatch(gitdir):
   return [head, config, branches, remotes]
 
 def watchForChanges(waitToMerge, maxUpdateFreq, action):
-  gitdir = git_dir()
-  with Watcher(gitdir, filesToWatch(gitdir), waitToMerge, maxUpdateFreq) as watcher:
-    while True:
-      Branch.clear_cache()
-      action()
-      watcher.awaitEvent()
+  with lazy_invalidation():
+    action.continually()
 
 def getPrintGraphArgs(options):
   def select(name, **algorithms):
@@ -300,6 +297,7 @@ if __name__ == '__main__':
   if options['--watch']:
     assert sys.stdout.isatty()
     try:
+      @lazy
       def action():
         try:
           printGraph(clearScreen = True, **printGraphArgs)
@@ -309,10 +307,8 @@ if __name__ == '__main__':
           traceback.print_exc(3)
           sys.stdout.write('\x1b[J')
           sys.stdout.flush()
-      watchForChanges(
-          waitToMerge = timedelta(milliseconds = int(options['--wait-to-merge'])),
-          maxUpdateFreq = timedelta(milliseconds = int(options['--max-update-freq'])),
-          action = action)
+      with lazy_invalidation():
+        action.continually()
     except KeyboardInterrupt:
       pass
   elif options['--profile']:

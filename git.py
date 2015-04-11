@@ -234,15 +234,6 @@ class Branch(object):
         branches.extend(t[1:-1] for t in m.group(2).split(', '))
     return frozenset(branches)
 
-  @classmethod
-  def clear_cache(cls):
-    for k, p in vars(cls).iteritems():
-      if k == k.upper():
-        try:
-          p.invalidate()
-        except AttributeError:
-          pass
-
   @lazy_git_function(watching = ['HEAD'])
   def HEAD():
     """The current HEAD branch, or None if head is detached."""
@@ -264,28 +255,6 @@ class Branch(object):
     locals = frozenset(b.name for b in Branch.ALL)
     return frozenset(Branch(name) for name in names if name.split('/', 1)[-1] in locals)
 
-  @lazy
-  def _REF_LOGS():
-    raw = {}
-    for b in Branch.ALL:
-      try:
-        raw[b] = Sh("git", "log", "-g", "%s@{now}" % b.name, "--date=raw", "--format=%gd %H")
-      except ShError:
-        raw[b] = ()
-
-    ref_logs = {}
-    rx = re.compile("@[{](\\d+) .*[}] (\\w+)")
-    for b in raw:
-      ref_logs[b] = branch_logs = []
-      try:
-        for l in raw[b]:
-          m = rx.search(l)
-          if m:
-            branch_logs.append(RefLine(int(m.group(1)), m.group(2)))
-      except ShError:
-        pass
-    return ref_logs
-
   def __new__(cls, name):
     if name == 'HEAD':
       raise ValueError('HEAD is not a valid Branch name')
@@ -302,13 +271,19 @@ class Branch(object):
   def __hash__(self):
     return hash(self.name)
 
-  @lazy
-  @property
-  def _refLog(self):
-    return type(self)._REF_LOGS.get(self, ())
+  _REFLOG_RE = re.compile("@[{](\\d+) .*[}] (\\w+)")
 
-  @lazy
-  @property
+  @lazy_git_property(watching = 'refs/heads/%name%')
+  def _refLog(self):
+    try:
+      rawlog = Sh("git", "log", "-g", "%s@{now}" % self.name,
+                  "--date=raw", "--format=%gd %H")
+      matches = (Branch._REFLOG_RE.search(l) for l in rawlog)
+      return tuple(RefLine(int(m.group(1)), m.group(2)) for m in matches if m)
+    except ShError:
+      return ()
+
+  @lazy_git_property(watching = 'refs/heads/%name%')
   def allCommits(self):
     """All commits made to this branch, in reverse chronological order.
 
@@ -381,8 +356,7 @@ class Branch(object):
     """All branches which have this branch as upstream or merged."""
     return frozenset(b for b in type(self).ALL if self in b.parents)
 
-  @lazy
-  @property
+  @lazy_git_property(watching = 'refs/heads/%name%')
   def modtime(self):
     """The timestamp of the latest commit to this branch."""
     with Sh("git", "log", "-n5", "--format=%at", self.name, "--") as log:
@@ -392,8 +366,7 @@ class Branch(object):
           return datetime.utcfromtimestamp(modtime)
     return None
 
-  @lazy
-  @property
+  @lazy_git_property(watching = 'refs/heads/%name%')
   def unmerged(self):
     """The number of parent commits that have not been pulled to this branch."""
     if self.upstream is None:
