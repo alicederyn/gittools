@@ -119,8 +119,7 @@ def layoutAllBranches():
   branches = tuple(PriorityBranchIterator(BranchBlockers(branches)))
   return zip(branches, layout(branches))
 
-def printGraph(clearScreen = False, ciTypes = ()):
-  ciTools = [ciType() for ciType in ciTypes]
+def printGraph(clearScreen = False, ciTools = ()):
   remotes = getRemotes()
   remoteHashes = dict(zip(remotes, revparse(*remotes).splitlines()))
   localsWithRemotes = defaultdict(set)
@@ -263,7 +262,7 @@ def getPrintGraphArgs(options):
       sys.stderr.write('%s not a valid choice for %s (must be one of: %s)'
                        % (options[name], name, ", ".join(algorithms.keys())))
   return {
-    'ciTypes' : () if options['--no-ci'] else (Stash, TravisClient)
+    'ciTools' : () if options['--no-ci'] else (Stash(), TravisClient())
   }
 
 if __name__ == '__main__':
