@@ -16,8 +16,6 @@ Options:
                             [default: 100].
     --max-update-freq=<ms>  Will not update more frequently than this [default: 500].
     --profile               Profiles the app
-    --order-algo=<algo>     Algorithm to select the next branch to unblock.
-                            One of: simple, priority [default: priority]
     --no-ci                 Do not display continuous integration status indicators
 """
 # Observed bugs:
@@ -119,34 +117,10 @@ class PriorityBranchIterator(object):
     del self._blockers[blocker]
     return blocker
 
-class SimpleBranchIterator(object):
-  def __init__(self, blockers):
-    self._blockers = blockers
-    self._roots = list(b for b in blockers.keys()
-                       if not any(p in self._blockers for p in b.parents))
-    self._roots.sort(key = lambda b: b.modtime)
-    self._currentRoots = []
-
-  def __iter__(self):
-    return self
-
-  def next(self):
-    if not self._currentRoots:
-      while self._roots and self._roots[-1] not in self._blockers:
-        self._roots.pop()
-      if not self._roots:
-        raise StopIteration()
-      self._currentRoots.append(self._roots.pop())
-    blocker = self._blockers[self._currentRoots[0]]
-    if self._currentRoots[0] is blocker:
-      self._currentRoots.pop(0)
-    del self._blockers[blocker]
-    return blocker
-
 def localParents(b, remotes):
   return [p for p in b.parents if not p.name in remotes]
 
-def printGraph(BranchIterator, clearScreen = False, ciTypes = ()):
+def printGraph(clearScreen = False, ciTypes = ()):
   ciTools = [ciType() for ciType in ciTypes]
   branches = getBranches()
   remotes = getRemotes()
@@ -203,7 +177,9 @@ def printGraph(BranchIterator, clearScreen = False, ciTypes = ()):
       control('\x1b[K')
     return ""
 
-  layout_to(sys.stdout, tuple(BranchIterator(BranchBlockers(branches))), branchLabel)
+  layout_to(sys.stdout,
+            tuple(PriorityBranchIterator(BranchBlockers(branches))),
+            branchLabel)
   if clearScreen:
     control('\x1b[J')
     sys.stdout.flush()
@@ -286,8 +262,6 @@ def getPrintGraphArgs(options):
       sys.stderr.write('%s not a valid choice for %s (must be one of: %s)'
                        % (options[name], name, ", ".join(algorithms.keys())))
   return {
-    'BranchIterator' : select('--order-algo',   simple   = SimpleBranchIterator,
-                                                priority = PriorityBranchIterator),
     'ciTypes' : () if options['--no-ci'] else (Stash, TravisClient)
   }
 
