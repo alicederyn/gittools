@@ -163,6 +163,61 @@ class LazyGitDecorator(LazyGitFunction):
 def lazy_git_function(watching):
   return lambda func : lazy(LazyGitDecorator(func, watching))
 
+class LazyGitProperty(watchdog.events.FileSystemEventHandler, property):
+  """
+  Base class for properties that provide information about a git repository.
+
+  Monitors root_dir (the current .git dir by default) and its subdirectories for
+      file-system events.
+  Events that match *any* include_glob will trigger an invalidation.
+  If any exclude_globs are provided, events that *do not* match any of them will trigger an
+      invalidation.
+  If no globs are provided, *all* events trigger an invalidation.
+  All globs are relative to root_dir.
+  Globs may include object properties, e.g. refs/heads/%name%
+  """
+  PROPERTY_RE = re.compile("%(\w+)%")
+
+  def __init__(self, func, watching):
+    property.__init__(self, fget = func)
+    self.__func__ = func
+    self._root_dir = os.path.abspath(git_dir())
+    self._watching = frozenset([watching] if isinstance(watching, basestring)
+                               else watching)
+    update_wrapper(self, func)
+
+  def watch(self, obj, storage, callback):
+    config = self
+    class handler(watchdog.events.FileSystemEventHandler):
+      def substitute(self, globs):
+        return (LazyGitProperty.PROPERTY_RE.sub(lambda m: getattr(obj, m.group(1)), g)
+                for g in globs)
+
+      def path_matches(self, rel_path):
+        return any(fnmatch(rel_path, g) for g in self.substitute(config._watching))
+
+      def on_any_event(self, event):
+        if event.is_directory:
+          pass
+        elif self.path_matches(os.path.relpath(event.src_path, config._root_dir)):
+          callback()
+        else:
+          try:
+            if self.path_matches(os.path.relpath(event.dest_path, config._root_dir)):
+              callback()
+          except AttributeError:
+            pass
+    storage.observer = watchdog.observers.Observer()
+    storage.observer.schedule(handler(), '.git', recursive = True)
+    storage.observer.start()
+
+  def unwatch(self, storage):
+    storage.observer.stop()
+    #storage.observer.join()
+
+def lazy_git_property(watching):
+  return lambda func : lazy(LazyGitProperty(func, watching))
+
 class Branch(object):
   _BRANCHES_BY_ID = { }
   _MERGE_PATTERN = re.compile(
