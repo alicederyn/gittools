@@ -154,3 +154,11 @@ class LazyList(object):
       raise IndexError("list index out of range")
     return self._values[y]
 
+  def __len__(self):
+    try:
+      while True:
+        self._values.append(self._iterator.next())
+    except StopIteration:
+      pass
+    return len(self._values)
+
