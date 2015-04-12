@@ -125,7 +125,10 @@ class LazyGitFunction(watchdog.events.FileSystemEventHandler):
     self._observer.start()
 
   def unwatch(self):
-    self._observer.stop()
+    try:
+      self._observer.stop()
+    except Exception:
+      pass
     #self._observer.join()
 
   def path_matches(self, rel_path):
@@ -212,7 +215,10 @@ class LazyGitProperty(watchdog.events.FileSystemEventHandler, property):
     storage.observer.start()
 
   def unwatch(self, storage):
-    storage.observer.stop()
+    try:
+      storage.observer.stop()
+    except Exception:
+      pass
     #storage.observer.join()
 
 def lazy_git_property(watching):
