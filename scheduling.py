@@ -21,30 +21,29 @@ class Scheduler(threading.Thread):
 
   def submit_at(self, time, task, *args, **kwargs):
     assert self.refcount > 0
-    self._sleepingTasks.acquire()
-    currentWakeUpTime = self._pq[0][0] if self._pq else None
-    heappush(self._pq, (time, task, args, kwargs))
-    if currentWakeUpTime is None or time < currentWakeUpTime:
-      self._sleepingTasks.notify()
-    if not self.active:
-      self.active = True
-      self.start()
-    self._sleepingTasks.release()
+    with self._sleepingTasks:
+      currentWakeUpTime = self._pq[0][0] if self._pq else None
+      heappush(self._pq, (time, task, args, kwargs))
+      if currentWakeUpTime is None or time < currentWakeUpTime:
+        self._sleepingTasks.notify()
+      if not self.active:
+        self.active = True
+        self.start()
 
   def run(self):
-    self._sleepingTasks.acquire()
-    while self.active:
-      while not self._pq:
-        self._sleepingTasks.wait(99999)
-      sleep_time = self._pq[0][0] - datetime.utcnow()
-      if sleep_time > timedelta(0):
-        self._sleepingTasks.wait(fractionalSeconds(sleep_time))
-      else:
-        (time, task, args, kwargs) = heappop(self._pq)
-        callback = kwargs.pop('callback', None)
-        future = self.submit(task, *args, **kwargs)
-        if callback:
-          future.add_done_callback(callback)
+    with self._sleepingTasks:
+      while self.active:
+        while not self._pq:
+          self._sleepingTasks.wait(99999)
+        sleep_time = self._pq[0][0] - datetime.utcnow()
+        if sleep_time > timedelta(0):
+          self._sleepingTasks.wait(fractionalSeconds(sleep_time))
+        else:
+          (time, task, args, kwargs) = heappop(self._pq)
+          callback = kwargs.pop('callback', None)
+          future = self.submit(task, *args, **kwargs)
+          if callback:
+            future.add_done_callback(callback)
 
   def retain(self):
     assert self.refcount > 0
@@ -56,9 +55,8 @@ class Scheduler(threading.Thread):
     if self.refcount == 0:
       if self.active:
         self.active = False
-        self._sleepingTasks.acquire()
-        self._sleepingTasks.notify()
-        self._sleepingTasks.release()
+        with self._sleepingTasks:
+          self._sleepingTasks.notify()
         self.join()
       self._executor.shutdown()
 
