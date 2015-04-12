@@ -12,35 +12,18 @@ Symbols:
 Options:
     -h --help               Show this screen.
     -w, --watch             Continue to watch for git repo changes after printing the graph.
-    --wait-to-merge=<ms>    Waits for this long for the git repo to settle after a change
-                            [default: 100].
-    --max-update-freq=<ms>  Will not update more frequently than this [default: 500].
-    --profile               Profiles the app
-    --no-ci                 Do not display continuous integration status indicators
+    --profile               Profiles the app.
+    --no-ci                 Do not display continuous integration status indicators.
 """
-# Observed bugs:
-#  1) git branch -f BRANCH commit  -- not noticed by --watch
-import heapq, os.path, sys, threading, time, traceback, watchdog.events, watchdog.observers
-from bisect import bisect_left
-from collections import defaultdict, namedtuple
-from datetime import datetime, timedelta
+import sys, traceback
+from collections import defaultdict
+from datetime import datetime
 from docopt import docopt
-from fnmatch import fnmatch
-from git import Branch, git_dir, revparse
+from git import Branch, revparse
 from layout import layout
 from lazy import lazy, lazy_invalidation
-from itertools import chain, cycle, product
 from stash import Stash
 from travis import TravisClient
-
-def getRemotes():
-  return frozenset(b.name for b in Branch.REMOTES)
-
-def alternatingColourIds():
-  for lowr,lowb,lowg in product(range(2,-1,-1), repeat=3):
-    for highr,highb,highg in [(1,1,0),(1,0,1),(0,1,1),(1,0,0),(0,1,0),(0,1,1)]:
-      v = 16 + (highr*3+lowr)*36 + (highg*3+lowg)*6 + (highb*3+lowb)
-      yield v
 
 def allChildren(branch):
   allChildren = set()
@@ -120,7 +103,7 @@ def layoutAllBranches():
   return zip(branches, layout(branches))
 
 def printGraph(clearScreen = False, ciTools = ()):
-  remotes = getRemotes()
+  remotes = frozenset(b.name for b in Branch.REMOTES)
   remoteHashes = dict(zip(remotes, revparse(*remotes).splitlines()))
   localsWithRemotes = defaultdict(set)
   for r in remotes:
@@ -183,76 +166,6 @@ def printGraph(clearScreen = False, ciTools = ()):
   if clearScreen:
     control('\x1b[J')
     sys.stdout.flush()
-
-def fractionalSeconds(delta):
-  return delta.total_seconds() + delta.microseconds / 10000000.0
-
-def sleepUntil(dt):
-  waitSecs = fractionalSeconds(dt - datetime.utcnow())
-  if waitSecs > 0:
-    time.sleep(waitSecs)
-
-class Watcher(watchdog.events.FileSystemEventHandler):
-  def __init__(self, path, patterns, waitToMerge, maxUpdateFreq):
-    self.path = path
-    self.patterns = patterns
-    self.event = threading.Event()
-    self.lastEvent = None
-    self.lastSeen = None
-    self.waitToMerge = waitToMerge
-    self.maxUpdateFreq = maxUpdateFreq
-
-  def __enter__(self):
-    self.observer = watchdog.observers.Observer()
-    self.observer.schedule(self, self.path, recursive = True)
-    self.observer.start()
-    self.notBefore = datetime.utcnow()
-    return self
-
-  def __exit__(self, type, value, traceback):
-    self.observer.stop()
-    self.observer = None
-
-  def on_any_event(self, event):
-    src_match = any(fnmatch(event.src_path, pattern) for pattern in self.patterns)
-    try:
-      dest_match = any(fnmatch(event.dest_path, pattern) for pattern in self.patterns)
-    except AttributeError:
-      dest_match = False
-    if src_match or dest_match:
-      self.lastEvent = datetime.utcnow()
-      self.event.set()
-
-  def lastEvent(self):
-    self.lastSeen = self.lastEvent
-    return self.lastSeen
-
-  def awaitEvent(self):
-    sleepUntil(self.notBefore)
-    seen = self.lastEvent
-    while self.lastSeen is seen:
-      self.event.wait()
-      self.event.clear()
-      seen = self.lastEvent
-    while True:
-      waitSecs = fractionalSeconds(seen + self.waitToMerge - datetime.utcnow())
-      if waitSecs <= 0:
-        break
-      time.sleep(waitSecs)
-      seen = self.lastEvent
-    self.lastSeen = seen
-    self.notBefore = datetime.utcnow() + self.maxUpdateFreq
-
-def filesToWatch(gitdir):
-  head = os.path.join(gitdir, 'HEAD')
-  config = os.path.join(gitdir, 'config')
-  branches = os.path.join(gitdir, 'refs', 'heads', '*')
-  remotes = os.path.join(gitdir, 'refs', 'remotes', '*', '*')
-  return [head, config, branches, remotes]
-
-def watchForChanges(waitToMerge, maxUpdateFreq, action):
-  with lazy_invalidation():
-    action.continually()
 
 def getPrintGraphArgs(options):
   def select(name, **algorithms):
