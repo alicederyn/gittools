@@ -1,7 +1,8 @@
-import concurrent.futures.thread, getpass, json, keyring, posixpath, re, requests, urlparse, warnings
+import getpass, json, keyring, posixpath, re, requests, urlparse, warnings
 from collections import Counter, defaultdict
 from git import Branch
 from itertools import count
+from scheduling import NotDoneException, Poller, Scheduler
 from lazy import lazy
 from utils import Sh, ShError
 
@@ -24,13 +25,13 @@ class Stash(object):
     self._auth = self._getAuth(servers)
 
     if servers:
-      self._executor = concurrent.futures.thread.ThreadPoolExecutor(3)
+      self._scheduler = Scheduler()
       self._futuresByServer = {
-          server : self._executor.submit(self._getServerStatsByBranch, server)
+          server : lazy(Poller(self._scheduler, self._getServerStatsByBranch, server))
               for server in servers
       }
     else:
-      self._executor = None
+      self._scheduler = None
       self._futuresByServer = {}
 
   STASH_REGEX = re.compile('^git[@](stash[^:]*):.*$')
@@ -130,10 +131,14 @@ class Stash(object):
   def _statsByBranch(self):
     statsByBranch = defaultdict(Counter)
     for serverStatsByBranch in self._futuresByServer.itervalues():
-      for b, stats in serverStatsByBranch.result().iteritems():
-        statsByBranch[b].update(stats)
-    if self._executor:
-      self._executor.shutdown()
+      try:
+        for b, stats in serverStatsByBranch().iteritems():
+          statsByBranch[b].update(stats)
+      except NotDoneException:
+        pass
+    if self._scheduler:
+      self._scheduler.release()
+      self._scheduler = None
     return statsByBranch
 
   def ciStatus(self, branch):
