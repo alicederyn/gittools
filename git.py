@@ -1,9 +1,10 @@
-import os.path, re, threading, watchdog.events, watchdog.observers
+import os.path, re, threading, watchdog.events
 from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from fnmatch import fnmatch
 from functools import update_wrapper
 from lazy import lazy
+from multiobserver import OBSERVER
 from utils import first, fractionalSeconds, LazyList, Sh, ShError
 
 __all__ = [ 'revparse', 'getUpstreamBranch', 'git_dir', 'Branch', 'GitLockWatcher',
@@ -21,13 +22,11 @@ class GitLockWatcher(watchdog.events.FileSystemEventHandler):
   def __init__(self, latency = timedelta(seconds = 0.5)):
     self.lockfile = os.path.join(git_dir(), 'index.lock')
     self.latency = latency
-    self.observer = None
     self._unlock_timestamp = datetime.utcfromtimestamp(0)
     self._unlocked = threading.Condition()
 
   @property
   def is_locked(self):
-    assert self.observer is not None
     return self._unlock_timestamp is not None and self._unlock_timestamp <= datetime.utcnow()
 
   def await_unlocked(self):
@@ -48,18 +47,13 @@ class GitLockWatcher(watchdog.events.FileSystemEventHandler):
       self._unlocked.notify_all()
 
   def __enter__(self):
-    assert self.observer is None
-    self.observer = watchdog.observers.Observer()
-    self.observer.schedule(self, '.git', recursive = False)
-    self.observer.start()
+    OBSERVER.schedule(self, '.git')
     if os.path.exists(self.lockfile):
       self._lock()
     return self
 
   def __exit__(self, type, value, traceback):
-    self.observer.stop()
-    self.observer.join()
-    self.observer = None
+    OBSERVER.unschedule(self, '.git')
 
   def on_created(self, event):
     if event.src_path == self.lockfile:
@@ -117,16 +111,10 @@ class LazyGitFunction(watchdog.events.FileSystemEventHandler):
 
   def watch(self, callback):
     self._callback = callback
-    self._observer = watchdog.observers.Observer()
-    self._observer.schedule(self, self._root_dir, recursive = self._recursive)
-    self._observer.start()
+    OBSERVER.schedule(self, self._root_dir)
 
   def unwatch(self):
-    try:
-      self._observer.stop()
-    except Exception:
-      pass
-    #self._observer.join()
+    OBSERVER.unschedule(self, self._root_dir).stop()
 
   def path_matches(self, rel_path):
     if not self._exclude_globs and not self._include_globs:
@@ -207,16 +195,11 @@ class LazyGitProperty(watchdog.events.FileSystemEventHandler, property):
               callback()
           except AttributeError:
             pass
-    storage.observer = watchdog.observers.Observer()
-    storage.observer.schedule(handler(), '.git', recursive = True)
-    storage.observer.start()
+    storage.handler = handler()
+    OBSERVER.schedule(storage.handler, '.git')
 
   def unwatch(self, storage):
-    try:
-      storage.observer.stop()
-    except Exception:
-      pass
-    #storage.observer.join()
+    OBSERVER.unschedule(storage.handler, '.git')
 
 def lazy_git_property(watching):
   return lambda func : lazy(LazyGitProperty(func, watching))
