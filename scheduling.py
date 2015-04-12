@@ -57,8 +57,7 @@ class Scheduler(threading.Thread):
         self.active = False
         with self._sleepingTasks:
           self._sleepingTasks.notify()
-        self.join()
-      self._executor.shutdown()
+      self._executor.shutdown(False)
 
 class CompletedFuture(object):
   def __init__(self, value):
