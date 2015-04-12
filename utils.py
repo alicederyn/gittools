@@ -1,6 +1,9 @@
 import os, select, subprocess
 
-__all__ = ['first', 'LazyList', 'Sh', 'ShError']
+__all__ = ['first', 'fractionalSeconds', 'LazyList', 'Sh', 'ShError']
+
+def fractionalSeconds(delta):
+  return delta.total_seconds() + delta.microseconds / 10000000.0
 
 class ShError(Exception):
   def __init__(self, returncode, cmd, stderr):

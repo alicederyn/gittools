@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from fnmatch import fnmatch
 from functools import update_wrapper
 from lazy import lazy
-from utils import first, LazyList, Sh, ShError
+from utils import first, fractionalSeconds, LazyList, Sh, ShError
 
 __all__ = [ 'revparse', 'getUpstreamBranch', 'git_dir', 'Branch', 'GitLockWatcher',
             'LazyGitFunction' ]
@@ -12,9 +12,6 @@ __all__ = [ 'revparse', 'getUpstreamBranch', 'git_dir', 'Branch', 'GitLockWatche
 # wait(None) blocks signals like KeyboardInterrupt
 # Use wait(99999) instead
 INDEFINITELY = 99999
-
-def fractionalSeconds(delta):
-  return delta.total_seconds() + delta.microseconds / 10000000.0
 
 @lazy
 def git_dir():
