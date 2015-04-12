@@ -15,7 +15,7 @@ Options:
     --profile               Profiles the app.
     --no-ci                 Do not display continuous integration status indicators.
 """
-import sys, traceback
+import logging, sys, traceback
 from collections import defaultdict
 from datetime import datetime
 from docopt import docopt
@@ -179,10 +179,12 @@ def getPrintGraphArgs(options):
   }
 
 if __name__ == '__main__':
+  logging.basicConfig()
   options = docopt(__doc__)
-  printGraphArgs = getPrintGraphArgs(options)
   if options['--watch']:
     assert sys.stdout.isatty()
+  printGraphArgs = getPrintGraphArgs(options)
+  if options['--watch']:
     try:
       @lazy
       def action():
