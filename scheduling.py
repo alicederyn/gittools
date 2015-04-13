@@ -6,9 +6,9 @@ from utils import fractionalSeconds
 
 class Scheduler(threading.Thread):
   """A half-baked ConcurrentThreadPoolExecutor implementation."""
-  def __init__(self):
+  def __init__(self, numthreads = 3):
     threading.Thread.__init__(self)
-    self._executor = concurrent.futures.thread.ThreadPoolExecutor(3)
+    self._executor = concurrent.futures.thread.ThreadPoolExecutor(numthreads)
     self._pq = []
     self._sleepingTasks = threading.Condition()
     self.daemon = True

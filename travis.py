@@ -3,12 +3,17 @@ from collections import defaultdict
 from git import Branch
 from lazy import lazy
 from multiprocessing.pool import ThreadPool
+from scheduling import NotDoneException, Poller, Scheduler
 from travispy import TravisPy
 from utils import Sh, ShError
 
 class TravisClient(object):
 
   SLUG_REGEX = re.compile('^git[@]github[.]com:(.*)[.]git$')
+
+  def __init__(self):
+    # Kick off asynchronous requests
+    self._futuresByBranchAndRemote
 
   @lazy
   @property
@@ -49,37 +54,38 @@ class TravisClient(object):
       warnings.filterwarnings('ignore', message='.*InsecurePlatformWarning.*')
       return TravisPy.github_auth(self._githubToken)
 
+  @staticmethod
+  def fetchStatus(travis, slug, branch):
+    return travis.branch(branch, slug).color
+
   @lazy
   @property
-  def _ciStatuses(self):
+  def _futuresByBranchAndRemote(self):
     if not self._remotesByBranchName:
       return defaultdict(dict)
-    pool = ThreadPool(20)
-    try:
-      with warnings.catch_warnings():
-        warnings.filterwarnings('ignore', message='.*InsecurePlatformWarning.*')
-        status = defaultdict(dict)
-        todos = [(branch, remote) 
-                 for branch, remotes in self._remotesByBranchName.iteritems()
-                 for remote in remotes]
-        if todos:
-          travis = self._travis()
-          remoteSlugs = self._remoteSlugs
-          def fetchStatus(todo):
-            branch, remote = todo
-            slug = remoteSlugs[remote]
-            try:
-              b = travis.branch(branch, slug)
-              status[branch][remote] = b.color
-            except travispy.errors.TravisError, e:
-              pass
-          pool.map(fetchStatus, todos)
-        return status
-    except IOError:
-      return defaultdict(dict)
-    finally:
-      pool.close()
+    with warnings.catch_warnings():
+      warnings.filterwarnings('ignore', message='.*InsecurePlatformWarning.*')
+      try:
+        travis = self._travis()
+      except (IOError, NotDoneException, travispy.errors.TravisError):
+        return defaultdict(dict)
+      remoteSlugs = self._remoteSlugs
+    scheduler = Scheduler(10)
+    futures = defaultdict(dict)
+    for branch, remotes in self._remotesByBranchName.iteritems():
+      for remote in remotes:
+        slug = remoteSlugs[remote]
+        futures[branch][remote] = lazy(Poller(
+            scheduler, TravisClient.fetchStatus, travis, slug, branch))
+    return futures
 
+  @lazy
   def ciStatus(self, branch):
-    return self._ciStatuses[branch.name]
+    stats = defaultdict(dict)
+    for remote, future in self._futuresByBranchAndRemote[branch.name].iteritems():
+      try:
+        stats[remote] = future()
+      except (IOError, NotDoneException, travispy.errors.TravisError):
+        pass
+    return stats
 
