@@ -1,6 +1,7 @@
 import threading, weakref
 from collections import deque
 from functools import update_wrapper
+from inspect import getcallargs
 
 __all__ = ['lazy', 'lazy_invalidation']
 
@@ -142,6 +143,14 @@ class LazyFunction(object):
   def __call__(self):
     return self._value.get(self.__func__)
 
+  def __get__(self, obj, objtype):
+    if not isinstance(objtype, type):
+      raise ValueError('@lazy attributes not supported on old-style classes')
+    if obj is not None:
+      return obj.__dict__.setdefault(
+          self.__func__.__name__, LazyInstanceMethod(self.__func__, obj, objtype))
+    return LazyInstanceMethod(self.__func__, obj, objtype)
+
   def invalidate(self):
     self._value.invalidate()
 
@@ -154,6 +163,49 @@ class LazyFunction(object):
         self()
       while not invalidation_event.is_set():
         invalidation_event.wait(99999)
+
+class LazyInstanceMethod(object):
+  def __new__(cls, func, obj, objtype):
+    if obj is not None:
+      try:
+        return obj.__dict__[func.__name__]
+      except KeyError:
+        pass
+    result = super(LazyInstanceMethod, cls).__new__(cls, func, obj, objtype)
+    if obj is not None:
+      return obj.__dict__.setdefault(func.__name__, result)
+    else:
+      return result
+
+  def __init__(self, func, obj, objtype):
+    update_wrapper(self, func)
+    self.__func__ = func
+    self.__self__ = obj
+    self.im_class = objtype
+    self.im_func = func
+    self.im_self = obj
+    self.__dict__.setdefault('_results', {})
+
+  def __call__(self, *args, **kwargs):
+    if self.__self__ is None:
+      obj = args[0]
+      bound_method = getattr(obj, self.__name__)
+      if bound_method.im_class != self.im_class:
+        raise TypeError('@lazy does not support inheritance: ' + repr(self))
+      return bound_method(*args[1:], **kwargs)
+    else:
+      args = (self.__self__,) + args
+      allargs = tuple(getcallargs(self.__func__, *args, **kwargs).iteritems())[1:]
+      result = self._results.setdefault(allargs, LazyResult())
+      return result.get(self.__func__, *args, **kwargs)
+
+  def __repr__(self):
+    if self.__self__ is not None:
+      return '<bound lazy method %s.%s of %s>' % (
+          self.im_class.__name__, self.__func__.__name__, repr(self.__self__))
+    else:
+      return '<unbound lazy method %s.%s>' % (
+          self.im_class.__name__, self.__func__.__name__)
 
 class LazyAttribute(object):
   """Attribute with lazy propagation on updates."""

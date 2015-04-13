@@ -281,3 +281,55 @@ def test_staticproperty_function_type_with_invalidation():
     assert foo_instances[0].i == 2
     assert len(foo_instances) == 1
 
+def test_method_with_parameters():
+  bar_calls = [0]
+  class Foo(object):
+    def __init__(self, offset):
+      self.offset = offset
+
+    @lazy
+    def bar(self, value):
+      bar_calls[0] += 1
+      return value + self.offset
+  a = Foo(5)
+  b = Foo(10)
+  assert 0 == bar_calls[0]
+  assert 6 == a.bar(1)
+  assert 1 == bar_calls[0]
+  assert 6 == a.bar(1)
+  assert 1 == bar_calls[0]
+  assert 11 == b.bar(1)
+  assert 2 == bar_calls[0]
+  assert 11 == b.bar(1)
+  assert 2 == bar_calls[0]
+  assert 8 == a.bar(3)
+  assert 3 == bar_calls[0]
+  assert 8 == a.bar(3)
+  assert 3 == bar_calls[0]
+
+def test_unbound_method_with_parameters():
+  bar_calls = [0]
+  class Foo(object):
+    def __init__(self, offset):
+      self.offset = offset
+
+    @lazy
+    def bar(self, value):
+      bar_calls[0] += 1
+      return value + self.offset
+  a = Foo(5)
+  b = Foo(10)
+  assert 0 == bar_calls[0]
+  assert 6 == Foo.bar(a, 1)
+  assert 1 == bar_calls[0]
+  assert 6 == Foo.bar(a, 1)
+  assert 1 == bar_calls[0]
+  assert 11 == Foo.bar(b, 1)
+  assert 2 == bar_calls[0]
+  assert 11 == Foo.bar(b, 1)
+  assert 2 == bar_calls[0]
+  assert 8 == Foo.bar(a, 3)
+  assert 3 == bar_calls[0]
+  assert 8 == Foo.bar(a, 3)
+  assert 3 == bar_calls[0]
+
