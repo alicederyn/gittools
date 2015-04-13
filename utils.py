@@ -1,9 +1,18 @@
 import os, select, subprocess
+from functools import update_wrapper
 
-__all__ = ['first', 'fractionalSeconds', 'LazyList', 'Sh', 'ShError']
+__all__ = ['first', 'fractionalSeconds', 'staticproperty', 'LazyList', 'Sh', 'ShError']
 
 def fractionalSeconds(delta):
   return delta.total_seconds() + delta.microseconds / 10000000.0
+
+class staticproperty(object):
+  def __init__(self, func):
+    self._func = func
+    update_wrapper(self, func)
+
+  def __get__(self, obj, objtype):
+    return self._func()
 
 class ShError(Exception):
   def __init__(self, returncode, cmd, stderr):

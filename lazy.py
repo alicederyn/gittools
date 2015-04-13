@@ -142,9 +142,6 @@ class LazyFunction(object):
   def __call__(self):
     return self._value.get(self.__func__)
 
-  def __get__(self, obj, objtype):
-    return self()
-
   def invalidate(self):
     self._value.invalidate()
 

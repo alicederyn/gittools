@@ -1,5 +1,6 @@
 from itertools import count
 from lazy import lazy, lazy_invalidation, invalidation_strategy, LazyInvalidation
+from utils import staticproperty
 
 def test_attribute_name():
   class Foo(object):
@@ -168,6 +169,7 @@ def test_staticmethod_cached():
 def test_staticproperty():
   i = [0]
   class Foo(object):
+    @staticproperty
     @lazy
     def BAR():
       i[0] += 1
@@ -217,6 +219,7 @@ def test_watchable_property():
 def test_staticproperty_function_type_no_invalidation():
   foo_instances = []
   class Foo():
+    @staticproperty
     @lazy
     class FOO():
       def __init__(self):
@@ -245,6 +248,7 @@ def test_staticproperty_function_type_no_invalidation():
 def test_staticproperty_function_type_with_invalidation():
   foo_instances = []
   class Foo():
+    @staticproperty
     @lazy
     class FOO():
       def __init__(self):

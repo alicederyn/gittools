@@ -5,7 +5,7 @@ from fnmatch import fnmatch
 from functools import update_wrapper
 from lazy import lazy
 from multiobserver import OBSERVER
-from utils import first, fractionalSeconds, LazyList, Sh, ShError
+from utils import first, fractionalSeconds, staticproperty, LazyList, Sh, ShError
 
 __all__ = [ 'revparse', 'getUpstreamBranch', 'git_dir', 'Branch', 'GitLockWatcher',
             'LazyGitFunction' ]
@@ -220,6 +220,7 @@ class Branch(object):
         branches.extend(t[1:-1] for t in m.group(2).split(', '))
     return frozenset(branches)
 
+  @staticproperty
   @lazy_git_function(watching = ['HEAD'])
   def HEAD():
     """The current HEAD branch, or None if head is detached."""
@@ -228,12 +229,14 @@ class Branch(object):
     except ValueError:
       return None
 
+  @staticproperty
   @lazy_git_function(watching = ['refs/heads/*'])
   def ALL():
     """The set of all (local) branches."""
     names = revparse("--abbrev-ref", "--branches").splitlines()
     return frozenset(Branch(name) for name in names)
 
+  @staticproperty
   @lazy_git_function(watching = ['refs/remotes/*'])
   def REMOTES():
     """The set of all remote branches that have a local branch of the same name."""
