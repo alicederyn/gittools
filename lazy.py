@@ -5,11 +5,14 @@ from inspect import getcallargs
 
 __all__ = ['lazy', 'lazy_invalidation']
 
-def lazy(object):
+def lazy(object = None, listener = None):
+  if object is None:
+    assert listener is not None
+    return lambda object : lazy(object, listener)
   if isinstance(object, type) or str(type(object)) == "<type 'classobj'>":
-    return update_wrapper(LazyFunction(object()), object)
+    return update_wrapper(LazyFunction(object(), listener), object)
   elif hasattr(object, '__call__'):
-    return update_wrapper(LazyFunction(object), object)
+    return update_wrapper(LazyFunction(object, listener), object)
   elif hasattr(object, '__get__'):
     lazy_property = LazyProperty(object)
     if hasattr(object, 'fget'):
@@ -129,9 +132,11 @@ class LazyResult(object):
     return value
 
 class LazyFunction(object):
-  def __init__(self, func):
+  def __init__(self, func, listener = None):
     self.__func__ = func
-    if hasattr(func, 'watch'):
+    if listener is not None:
+      self._value = LazyResult(listener)
+    elif hasattr(func, 'watch'):
       self._value = LazyResult(func)
     else:
       self._value = LazyResult()

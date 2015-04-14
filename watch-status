@@ -3,7 +3,7 @@ import git, os.path, signal, sys, threading, watchdog.events, watchdog.observers
 from collections import namedtuple
 from datetime import datetime, timedelta
 from fnmatch import fnmatch
-from git import git_dir, GitLockWatcher, LazyGitFunction
+from git import git_dir, GitListener, GitLockWatcher
 from itertools import islice
 from lazy import lazy, lazy_invalidation
 from utils import Sh
@@ -13,24 +13,21 @@ from utils import Sh
 INDEFINITELY = 99999
 
 @lazy
-class git_status(LazyGitFunction):
-  def __init__(self):
-    LazyGitFunction.__init__(self,
-                             root_dir = os.path.join(git_dir(), '..'),
-                             exclude_globs = ['.git/*'],
-                             include_globs = ['.git/index', '.git/refs/heads/*'])
-
+class git_status(object):
   def __call__(self):
     self._git_lock.await_unlocked()
     return list(Sh('git', 'status', '--porcelain', '--untracked-files=all'))
 
   def watch(self, callback):
-    LazyGitFunction.watch(self, callback)
+    self._listener = GitListener(root_dir = os.path.join(git_dir(), '..'),
+                                 exclude_globs = ['.git/*'],
+                                 include_globs = ['.git/index', '.git/refs/heads/*'])
+    self._listener.watch(callback)
     self._git_lock = GitLockWatcher()
     self._git_lock.__enter__()
 
   def unwatch(self):
-    LazyGitFunction.unwatch(self)
+    self._listener.unwatch()
     self._git_lock.__exit__(None, None, None)
     self._git_lock = None
 
@@ -51,15 +48,13 @@ def show_status():
     sys.stdout.write(line)
   sys.stdout.flush()
 
-WindowSize = namedtuple('Size', 'rows columns')
-@lazy
-class window_size:
-  def __call__(self):
-    return WindowSize(*[int(v) for v in str(Sh('stty', 'size')).split()])
+class SignalListener(object):
+  def __init__(self, signum):
+    self.signum = signum
 
   def watch(self, callback):
     self._callback = callback
-    self._next_signal = signal.signal(signal.SIGWINCH, self.resize_event)
+    self._next_signal = signal.signal(self.signum, self.resize_event)
 
   def resize_event(self, signal_num, stack):
     try:
@@ -70,7 +65,12 @@ class window_size:
       self._callback()
 
   def unwatch(self):
-    signal.signal(signal.SIGWINCH, self._next_signal)
+    signal.signal(self.signum, self._next_signal)
+
+WindowSize = namedtuple('Size', 'rows columns')
+@lazy(listener = SignalListener(signal.SIGWINCH))
+def window_size():
+  return WindowSize(*[int(v) for v in str(Sh('stty', 'size')).split()])
 
 if __name__ == '__main__':
   assert sys.stdout.isatty()

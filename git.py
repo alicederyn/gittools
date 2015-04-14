@@ -7,8 +7,7 @@ from lazy import lazy
 from multiobserver import OBSERVER
 from utils import first, fractionalSeconds, staticproperty, LazyList, Sh, ShError
 
-__all__ = [ 'revparse', 'getUpstreamBranch', 'git_dir', 'Branch', 'GitLockWatcher',
-            'LazyGitFunction' ]
+__all__ = [ 'revparse', 'getUpstreamBranch', 'git_dir', 'Branch', 'GitListener', 'GitLockWatcher' ]
 
 # wait(None) blocks signals like KeyboardInterrupt
 # Use wait(99999) instead
@@ -86,9 +85,9 @@ def getUpstreamBranch(branch):
 RefLine = namedtuple('RefLine', 'timestamp hash')
 Commit = namedtuple("Commit", "hash subject merges")
 
-class LazyGitFunction(watchdog.events.FileSystemEventHandler):
+class GitListener(watchdog.events.FileSystemEventHandler):
   """
-  Base class for functions that provide information about a git repository.
+  Listens for git filesystem events.
 
   Monitors root_dir (the current .git dir by default) and its subdirectories for
       file-system events.
@@ -102,54 +101,50 @@ class LazyGitFunction(watchdog.events.FileSystemEventHandler):
                root_dir = None,
                exclude_globs = (),
                include_globs = ()):
-    self._root_dir = os.path.abspath(root_dir or git_dir())
-    self._exclude_globs = frozenset(exclude_globs)
-    self._include_globs = frozenset(include_globs)
-    self._recursive = bool(self._exclude_globs
-                           or not self._include_globs
-                           or any('*' in g for g in self._include_globs))
+    self.root_dir = root_dir
+    self.exclude_globs = frozenset(exclude_globs)
+    self.include_globs = frozenset(include_globs)
+    self._recursive = bool(self.exclude_globs
+                           or not self.include_globs
+                           or any('*' in g for g in self.include_globs))
 
   def watch(self, callback):
     self._callback = callback
-    OBSERVER.schedule(self, self._root_dir)
+    root_dir = self.root_dir or git_dir()
+    try:
+      self._abs_root_dir = os.path.abspath(self.root_dir or git_dir())
+    except AttributeError:
+      raise ValueError('root_dir inappropriate: %s' % repr(root_dir))
+    OBSERVER.schedule(self, self._abs_root_dir)
 
   def unwatch(self):
-    OBSERVER.unschedule(self, self._root_dir).stop()
+    OBSERVER.unschedule(self, self._abs_root_dir).stop()
 
   def path_matches(self, rel_path):
-    if not self._exclude_globs and not self._include_globs:
+    if not self.exclude_globs and not self.include_globs:
       return True
-    any_included = any(fnmatch(rel_path, g) for g in self._include_globs)
+    any_included = any(fnmatch(rel_path, g) for g in self.include_globs)
     if any_included:
       return True
-    any_excluded = any(fnmatch(rel_path, g) for g in self._exclude_globs)
-    if self._exclude_globs and not any_excluded:
+    any_excluded = any(fnmatch(rel_path, g) for g in self.exclude_globs)
+    if self.exclude_globs and not any_excluded:
       return True
     return False
 
   def on_any_event(self, event):
     if event.is_directory:
       pass
-    elif self.path_matches(os.path.relpath(event.src_path, self._root_dir)):
+    elif self.path_matches(os.path.relpath(event.src_path, self._abs_root_dir)):
       self._callback()
     else:
       try:
-        if self.path_matches(os.path.relpath(event.dest_path, self._root_dir)):
+        if self.path_matches(os.path.relpath(event.dest_path, self._abs_root_dir)):
           self._callback()
       except AttributeError:
         pass
 
-class LazyGitDecorator(LazyGitFunction):
-  def __init__(self, func, watching):
-    LazyGitFunction.__init__(self, include_globs = watching)
-    self.__func__ = func
-    update_wrapper(self, func)
-
-  def __call__(self):
-    return self.__func__()
-
 def lazy_git_function(watching):
-  return lambda func : lazy(LazyGitDecorator(func, watching))
+  return lazy(listener = GitListener(include_globs = watching))
 
 class LazyGitProperty(watchdog.events.FileSystemEventHandler, property):
   """
