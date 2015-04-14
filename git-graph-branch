@@ -15,8 +15,8 @@ Options:
     --profile               Profiles the app.
     --no-ci                 Do not display continuous integration status indicators.
 """
-import logging, sys, traceback
-from collections import defaultdict
+import logging, re, sys, traceback
+from collections import Counter, defaultdict
 from datetime import datetime
 from docopt import docopt
 from git import Branch, revparse
@@ -24,6 +24,13 @@ from layout import layout
 from lazy import lazy, lazy_invalidation
 from stash import Stash
 from travis import TravisClient
+from utils import window_size
+
+STATUS_ICONS = {
+  'orange': u'⌛ ',
+  'green': u'💚 ',
+  'red': u'🔥 ',
+}
 
 def allChildren(branch):
   allChildren = set()
@@ -102,6 +109,14 @@ def layoutAllBranches():
   branches = tuple(PriorityBranchIterator(BranchBlockers(branches)))
   return zip(branches, layout(branches))
 
+ESCAPE = re.compile('\x1b[[][^@-~]*[@-~]')
+def stripEscapeCodes(s):
+  return ESCAPE.sub('', s)
+
+SURROGATE_PAIR = re.compile(u'[\ud800-\udbff][\udc00-\udfff]', re.UNICODE)
+def unicodeLen(s):
+  return len(SURROGATE_PAIR.sub('.', s))
+
 def printGraph(clearScreen = False, ciTools = ()):
   remotes = frozenset(b.name for b in Branch.REMOTES)
   remoteHashes = dict(zip(remotes, revparse(*remotes).splitlines()))
@@ -123,44 +138,82 @@ def printGraph(clearScreen = False, ciTools = ()):
     def control(chars):
       pass
 
-  def branchLabel(b):
-    if b == Branch.HEAD:
-      control('\x1b[1;35m')
-    sys.stdout.write(b.name)
-    control('\x1b[0m')
-    if b.name in localsWithRemotes:
-      sys.stdout.write(' ')
-      version = b.allCommits[0].hash
-      if any(remoteHashes[r] != version for r in localsWithRemotes[b.name]):
-        sys.stdout.write('🔶 ')
-      else:
-        sys.stdout.write('🔷 ')
-    ciStatuses = [ status for tool in ciTools for status in tool.ciStatus(b).values() ]
-    if ciStatuses:
-      sys.stdout.write(' ')
-      for status in ciStatuses:
-        if status == 'orange':
-          sys.stdout.write('⌛ ')
-        elif status == 'green':
-          sys.stdout.write('💚 ')
-        else:
-          sys.stdout.write('🔥 ')
-    if b.unmerged > 0:
-      sys.stdout.write(' ')
-      control('\x1b[1;31m')
-      if b.unmerged <= 20:
-        sys.stdout.write((u'%s unmerged' % unichr(0x245F + b.unmerged)).encode('UTF-8'))
-      else:
-        sys.stdout.write(" [%d unmerged]" % b.unmerged)
-      control('\x1b[0m')
-    if clearScreen:
-      control('\x1b[K')
-    return ""
+  if sys.stdout.isatty():
+    rows, columns = window_size()
 
   for b, row in layoutAllBranches():
-    sys.stdout.write(unicode(row).encode('UTF-8'))
-    sys.stdout.write('  ')
-    branchLabel(b)
+    graph = unicode(row) + '  '
+    name = b.name
+    remotes = u''
+    if b.name in localsWithRemotes:
+      version = b.allCommits[0].hash
+      if any(remoteHashes[r] != version for r in localsWithRemotes[b.name]):
+        remotes = u' 🔶 '
+      else:
+        remotes = u' 🔷 '
+    ciStatus = u''
+    ciStatuses = [ status for tool in ciTools for status in tool.ciStatus(b).values() ]
+    if ciStatuses:
+      ciStatus = u' ' + ''.join(STATUS_ICONS[status] for status in ciStatuses)
+    unmerged = u''
+    if b.unmerged > 0:
+      unmerged = u' \x1b[1;31m'
+      if b.unmerged <= 20:
+        unmerged += u'%s unmerged' % unichr(0x245F + b.unmerged)
+      else:
+        unmerged += u' [%d unmerged]' % b.unmerged
+      unmerged += u'\x1b[0m'
+
+    if sys.stdout.isatty():
+      line = graph + name + remotes + ciStatus + unmerged
+
+      # Shorten the CI statuses if the line is too long
+      if unicodeLen(stripEscapeCodes(line)) > columns and ciStatuses:
+        altCiStatus = u' '
+        for status, count in Counter(ciStatuses).iteritems():
+          altCiStatus += STATUS_ICONS[status]
+          if count > 1:
+            altCiStatus += u'×%d' % count
+        if unicodeLen(altCiStatus) < unicodeLen(ciStatus):
+          ciStatus = altCiStatus
+        line = graph + name + remotes + ciStatus + unmerged
+
+      # Remove the "unmerged" text if the line is too long
+      if unicodeLen(stripEscapeCodes(line)) > columns and b.unmerged > 0:
+        unmerged = u' \x1b[1;31m'
+        if b.unmerged <= 20:
+          unmerged += u'%s ' % unichr(0x245F + b.unmerged)
+        else:
+          unmerged += u'[%d]' % b.unmerged
+        unmerged += u'\x1b[0m'
+        line = graph + name + remotes + ciStatus + unmerged
+
+      # Remove the space at the start of the CI statuses if the line is too long
+      if unicodeLen(stripEscapeCodes(line)) > columns:
+        ciStatus = ciStatus[1:]
+        line = graph + name + remotes + ciStatus + unmerged
+
+      # Reduce the branch name down to 10 characters if the line is too long
+      if unicodeLen(stripEscapeCodes(line)) > columns and len(name) > 10:
+        space = max(10, columns + len(name) - unicodeLen(stripEscapeCodes(line)))
+        name = b.name
+        if '/' in name:
+          dir, name = name.rsplit('/', 1)
+          name = dir[:max(0,space - 2 - len(name))] + u'…/' + name
+        if len(name) > space:
+          name = name[:space - 1] + u'…'
+        line = graph + name + remotes + ciStatus + unmerged
+
+    if b == Branch.HEAD:
+      name = '\x1b[1;35m' + name + '\x1b[0m'
+    line = graph + name + remotes + ciStatus + unmerged
+
+    if not sys.stdout.isatty():
+      line = stripEscapeCodes(line)
+    sys.stdout.write(line.encode('UTF-8'))
+
+    if clearScreen:
+      control('\x1b[K')
     sys.stdout.write('\n')
 
   if clearScreen:
