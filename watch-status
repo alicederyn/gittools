@@ -1,16 +1,9 @@
 #!/usr/local/bin/python
-import git, os.path, signal, sys, threading, watchdog.events, watchdog.observers
-from collections import namedtuple
-from datetime import datetime, timedelta
-from fnmatch import fnmatch
-from git import git_dir, GitListener, GitLockWatcher
+import os.path, sys, watchdog.events, watchdog.observers
+from git import git_dir, Branch, GitListener, GitLockWatcher
 from itertools import islice
 from lazy import lazy, lazy_invalidation
-from utils import Sh
-
-# wait(None) blocks signals like KeyboardInterrupt
-# Use wait(99999) instead
-INDEFINITELY = 99999
+from utils import window_size, Sh
 
 @lazy
 class git_status(object):
@@ -36,10 +29,10 @@ def show_status():
   rows, columns = window_size()
   sys.stdout.write('\x1b[0;0H\x1b[2J')
   sys.stdout.write('\x1b[1;33m')
-  if git.Branch.HEAD is None:
+  if Branch.HEAD is None:
     sys.stdout.write('HEAD detached')
   else:
-    sys.stdout.write('On %s' % git.Branch.HEAD.name)
+    sys.stdout.write('On %s' % Branch.HEAD.name)
   sys.stdout.write('\x1b[0m')
   for line in islice(git_status(), rows - 1):
     sys.stdout.write('\n')
@@ -47,30 +40,6 @@ def show_status():
       line = line[0:4] + '...' + line[-(columns - 8):]
     sys.stdout.write(line)
   sys.stdout.flush()
-
-class SignalListener(object):
-  def __init__(self, signum):
-    self.signum = signum
-
-  def watch(self, callback):
-    self._callback = callback
-    self._next_signal = signal.signal(self.signum, self.resize_event)
-
-  def resize_event(self, signal_num, stack):
-    try:
-      self._next_signal()
-    except TypeError:
-      pass
-    finally:
-      self._callback()
-
-  def unwatch(self):
-    signal.signal(self.signum, self._next_signal)
-
-WindowSize = namedtuple('Size', 'rows columns')
-@lazy(listener = SignalListener(signal.SIGWINCH))
-def window_size():
-  return WindowSize(*[int(v) for v in str(Sh('stty', 'size')).split()])
 
 if __name__ == '__main__':
   assert sys.stdout.isatty()

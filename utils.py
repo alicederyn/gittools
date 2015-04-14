@@ -1,7 +1,10 @@
-import os, select, subprocess
+import os, select, signal, subprocess
+from collections import namedtuple
 from functools import update_wrapper
+from lazy import lazy
+from listener import SignalListener
 
-__all__ = ['first', 'fractionalSeconds', 'staticproperty', 'LazyList', 'Sh', 'ShError']
+__all__ = ['first', 'fractionalSeconds', 'staticproperty', 'window_size', 'LazyList', 'Sh', 'ShError']
 
 def fractionalSeconds(delta):
   return delta.total_seconds() + delta.microseconds / 10000000.0
@@ -13,6 +16,11 @@ class staticproperty(object):
 
   def __get__(self, obj, objtype):
     return self._func()
+
+WindowSize = namedtuple('Size', 'rows columns')
+@lazy(listener = SignalListener(signal.SIGWINCH))
+def window_size():
+  return WindowSize(*[int(v) for v in str(Sh('stty', 'size')).split()])
 
 class ShError(Exception):
   def __init__(self, returncode, cmd, stderr):
