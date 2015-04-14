@@ -6,11 +6,7 @@ from inspect import getcallargs
 __all__ = ['lazy', 'lazy_invalidation']
 
 def lazy(object):
-  if isinstance(object, classmethod):
-    return update_wrapper(LazyClassProperty(object.__func__), object.__func__)
-  elif isinstance(object, staticmethod):
-    return update_wrapper(LazyStaticProperty(object.__func__), object.__func__)
-  elif isinstance(object, type) or str(type(object)) == "<type 'classobj'>":
+  if isinstance(object, type) or str(type(object)) == "<type 'classobj'>":
     return update_wrapper(LazyFunction(object()), object)
   elif hasattr(object, '__call__'):
     return update_wrapper(LazyFunction(object), object)
@@ -20,7 +16,7 @@ def lazy(object):
       update_wrapper(lazy_property, object.fget)
     return lazy_property
   else:
-    return LazyAttribute(object)
+    raise ValueError()
 
 def lazy_invalidation():
   return LazyInvalidation()
@@ -207,37 +203,6 @@ class LazyInstanceMethod(object):
       return '<unbound lazy method %s.%s>' % (
           self.im_class.__name__, self.__func__.__name__)
 
-class LazyAttribute(object):
-  """Attribute with lazy propagation on updates."""
-  def __init__(self, default):
-    self._default = default
-
-  def _find_name(self, obj, objtype = None):
-    if not hasattr(self, '__name__'):
-      if objtype is None:
-        objtype = type(obj)
-      for k, v in objtype.__dict__.iteritems():
-        if v is self:
-          self.__name__ = k
-          break
-      else:
-        raise Exception('%s not found on %s', self, objtype)
-
-  def _get_lazy_value(self, obj):
-    return obj.__dict__.setdefault(self.__name__, LazyResult())
-
-  def __get__(self, obj, objtype):
-    self._find_name(obj, objtype)
-    if obj is None:
-      return self
-    return self._get_lazy_value(obj).get(lambda : self._default)
-
-  def __set__(self, obj, value):
-    self._find_name(obj)
-    lazy_value = self._get_lazy_value(obj)
-    lazy_value.invalidate()
-    lazy_value.set(value)
-
 class Storage(object): pass
 
 class PropertyWatchWrapper(object):
@@ -269,36 +234,6 @@ class LazyProperty(object):
         lazy_result = LazyResult()
       obj.__dict__[self.__name__] = lazy_result
     return lazy_result.get(self.delegate.__get__, obj, objtype)
-
-  def __set__(self, obj, value):
-    raise AttributeError()
-
-class LazyClassProperty(object):
-  """Lazily-calculated class property."""
-  def __init__(self, func):
-    self._func = func
-    self._value = LazyResult()
-
-  def __get__(self, obj, objtype=None):
-    if obj is not None:
-      raise AttributeError("'%s' object has no attribute '%s'"
-                           % (objtype.__name__, self.__name__))
-    return self._value.get(self._func, objtype)
-
-  def __set__(self, obj, value):
-    raise AttributeError()
-
-class LazyStaticProperty(object):
-  """Lazily-calculated static property."""
-  def __init__(self, func):
-    self._func = func
-    self._value = LazyResult()
-
-  def __get__(self, obj, objtype=None):
-    if obj is not None:
-      raise AttributeError("'%s' object has no attribute '%s'"
-                           % (objtype.__name__, self.__name__))
-    return self._value.get(self._func)
 
   def __set__(self, obj, value):
     raise AttributeError()
