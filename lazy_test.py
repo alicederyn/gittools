@@ -1,6 +1,19 @@
+import weakref
 from itertools import count
 from lazy import lazy, lazy_invalidation, invalidation_strategy, LazyInvalidation
 from utils import staticproperty
+
+class DummyListener(object):
+  callback = None
+  retain_calls = 0
+  release_calls = 0
+
+  def watch(self, callback):
+    self.callback = callback
+    self.retain_calls += 1
+
+  def unwatch(self):
+    self.release_calls += 1
 
 def test_function():
   i = [0]
@@ -249,4 +262,89 @@ def test_unbound_method_with_parameters():
   assert 3 == bar_calls[0]
   assert 8 == Foo.bar(a, 3)
   assert 3 == bar_calls[0]
+
+def test_lazy_values_can_be_garbage_collected_no_invalidation():
+  @lazy
+  def foo():
+    return 5
+
+  foo_ref = weakref.ref(foo)
+  assert foo() == 5
+  assert foo_ref() is not None
+  foo = None
+  assert foo_ref() is None
+
+def test_lazy_values_can_be_garbage_collected_with_invalidation():
+  @lazy
+  def foo():
+    return 5
+
+  with lazy_invalidation():
+    foo_ref = weakref.ref(foo)
+    assert foo() == 5
+    foo = None
+    assert foo_ref() is None
+
+def test_unwatch_called_after_garbage_collection():
+  listener = DummyListener()
+
+  @lazy(listener = listener)
+  def foo():
+    return 5
+
+  with lazy_invalidation():
+    foo_ref = weakref.ref(foo)
+    assert listener.retain_calls == 0
+    assert listener.release_calls == 0
+    assert foo() == 5
+    assert listener.retain_calls == 1
+    assert listener.release_calls == 0
+    assert foo_ref() is not None
+    foo = None
+    assert listener.retain_calls == 1
+    assert listener.release_calls == 1
+    assert foo_ref() is None
+    listener.callback()
+
+def test_lazy_dependencies_can_be_garbage_collected_no_invalidation():
+  @lazy
+  def foo():
+    return 5
+
+  @lazy
+  def bar():
+    return foo()
+
+  foo_ref = weakref.ref(foo)
+  assert bar() == 5
+  assert foo_ref() is not None
+  foo = None
+  assert foo_ref() is None
+  assert bar() == 5
+
+def test_dependency_still_watched_when_no_explicit_references_remain():
+  listener = DummyListener()
+
+  @lazy(listener = listener)
+  def foo():
+    return 5
+
+  @lazy
+  def bar():
+    return foo()
+
+
+  with lazy_invalidation():
+    foo_ref = weakref.ref(foo)
+    assert listener.retain_calls == 0
+    assert listener.release_calls == 0
+    assert bar() == 5
+    foo = lambda : 6
+    assert listener.retain_calls == 1
+    assert listener.release_calls == 0
+    assert bar() == 5
+    listener.callback()
+    assert listener.retain_calls == 1
+    assert listener.release_calls == 1
+    assert bar() == 6
 

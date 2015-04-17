@@ -2,6 +2,7 @@ import threading, weakref
 from collections import deque
 from functools import update_wrapper
 from inspect import getcallargs
+from weakref import WeakKeyDictionary, WeakSet
 
 __all__ = ['lazy', 'lazy_invalidation']
 
@@ -26,11 +27,17 @@ def lazy_invalidation():
 
 class LazyConstants(object):
   def __init__(self):
-    self._watchable_objects = set()
+    self._watchable_objects = WeakSet()
 
   def _watch_object(self, object):
     if object.watcher is not None:
       self._watchable_objects.add(object)
+
+  def _add_dependency(self, object):
+    pass
+
+  def _unwatch_object(self, object):
+    pass
 
   def _invalidate_all(self):
     for watchable_object in self._watchable_objects:
@@ -38,31 +45,60 @@ class LazyConstants(object):
       watchable_object.inited = False
     self._watchable_objects.clear()
 
+class WeakWatchIntermediary(object):
+  def __init__(self, result, watcher):
+    self.watcher = watcher
+    self.result = weakref.ref(result, self.release)
+    watcher.watch(self)
+
+  def __call__(self):
+    try:
+      self.result().invalidate()
+    except TypeError:
+      pass
+
+  def release(self, weakref = None):
+    watcher = self.__dict__.pop('watcher', None)  # Atomic
+    try:
+      watcher.unwatch()
+    except (AttributeError, TypeError):
+      pass
+    try:
+      result = self.result()
+      result.invalidate()
+      result.inited = False
+    except (AttributeError, TypeError):
+      pass
+    self.result = None
+
 class LazyInvalidation(object):
   def __enter__(self):
     assert threading.current_thread() == MAIN_THREAD
     assert not evaluation_stack
-    self._watchable_objects = set()
+    self._watchMap = WeakKeyDictionary()
+    self._watchable_objects = WeakSet()
     global invalidation_strategy
     invalidation_strategy._invalidate_all()
     invalidation_strategy = self
 
   def _watch_object(self, object):
-    if object.watcher is not None:
-      self._watchable_objects.add(object)
-      object.watcher.watch(object.invalidate)
+    if object.watcher is not None and object.watcher not in self._watchMap:
+      self._watchMap[object.watcher] = WeakWatchIntermediary(object, object.watcher)
+
+  def _add_dependency(self, object):
+    if evaluation_stack:
+      evaluation_stack[-1].deps.append(object)
+
+  def _unwatch_object(self, object):
+    object.invalidate()
+    self._watchable_objects.discard(object)
 
   def __exit__(self, type, value, traceback):
     global invalidation_strategy
     invalidation_strategy = LazyConstants()
-    for watchable_object in self._watchable_objects:
-      try:
-        watchable_object.watcher.unwatch()
-      except AttributeError:
-        pass
-      watchable_object.invalidate()
-      watchable_object.inited = False
-    self._watchable_objects.clear()
+    for intermediary in self._watchMap.itervalues():
+      intermediary.release()
+    self._watchMap.clear()
 
   def _invalidate_all(self):
     raise TypeError('Cannot nest lazy_invalidation contexts')
@@ -73,19 +109,24 @@ class LazyEvaluationContext(object):
 
   def __enter__(self):
     assert threading.current_thread() == MAIN_THREAD
+    invalidation_strategy._add_dependency(self)
     evaluation_stack.append(self.lazyObject)
+    self.lazyObject.deps = []
     return self
 
   def __exit__(self, type, value, traceback):
     evaluation_stack.pop()
+    self.lazyObject.deps = frozenset(self.lazyObject.deps)
     if not evaluation_stack:
       while invalidation_queue:
         invalidation_queue.pop().invalidate()
 
 class LazyResult(object):
+  inited = False
+  deps = None  # Stores hard references to upstream dependencies for invalidation purposes
+
   def __init__(self, watcher = None):
     self.watcher = watcher
-    self.inited = False
 
   def invalidate(self):
     if not hasattr(self, '_value'):
@@ -95,6 +136,7 @@ class LazyResult(object):
       invalidation_event.set()
       return
     del self._value
+    self.deps = None
     try:
       refs = tuple(self._refs)
     except AttributeError:
@@ -114,7 +156,7 @@ class LazyResult(object):
       self.inited = True
     if evaluation_stack:
       if not hasattr(self, '_refs'):
-        self._refs = weakref.WeakSet()
+        self._refs = WeakSet()
       self._refs.add(evaluation_stack[-1])
     try:
       value, e = self._value
