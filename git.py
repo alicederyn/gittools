@@ -258,7 +258,12 @@ class Branch(object):
 
   _REFLOG_RE = re.compile("@[{](\\d+) .*[}] (\\w+)")
 
-  @lazy_git_property(watching = 'refs/heads/%name%')
+  @lazy
+  @property
+  def fullName(self):
+    return revparse('--symbolic-full-name', self.name)
+
+  @lazy_git_property(watching = 'logs/%fullName%')
   def _refLog(self):
     try:
       rawlog = Sh("git", "log", "-g", "%s@{now}" % self.name,
@@ -268,7 +273,7 @@ class Branch(object):
     except ShError:
       return ()
 
-  @lazy_git_property(watching = 'refs/heads/%name%')
+  @lazy_git_property(watching = '%fullName%')
   def allCommits(self):
     """All commits made to this branch, in reverse chronological order.
 
