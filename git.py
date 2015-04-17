@@ -169,24 +169,25 @@ class LazyGitProperty(watchdog.events.FileSystemEventHandler, property):
                                else watching)
     update_wrapper(self, func)
 
-  def watch(self, obj, storage, callback):
-    config = self
-    class handler(watchdog.events.FileSystemEventHandler):
-      def substitute(self, globs):
-        return (LazyGitProperty.PROPERTY_RE.sub(lambda m: getattr(obj, m.group(1)), g)
-                for g in globs)
+  def substitute(self, obj, globs):
+    return tuple(LazyGitProperty.PROPERTY_RE.sub(lambda m: getattr(obj, m.group(1)), g)
+                 for g in globs)
 
+  def watch(self, obj, storage, callback):
+    root_dir = self._root_dir
+    watching = self.substitute(obj, self._watching)
+    class handler(watchdog.events.FileSystemEventHandler):
       def path_matches(self, rel_path):
-        return any(fnmatch(rel_path, g) for g in self.substitute(config._watching))
+        return any(fnmatch(rel_path, g) for g in watching)
 
       def on_any_event(self, event):
         if event.is_directory:
           pass
-        elif self.path_matches(os.path.relpath(event.src_path, config._root_dir)):
+        elif self.path_matches(os.path.relpath(event.src_path, root_dir)):
           callback()
         else:
           try:
-            if self.path_matches(os.path.relpath(event.dest_path, config._root_dir)):
+            if self.path_matches(os.path.relpath(event.dest_path, root_dir)):
               callback()
           except AttributeError:
             pass
