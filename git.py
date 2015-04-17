@@ -291,8 +291,7 @@ class Branch(object):
     """The latest commit made to this branch."""
     return self.allCommits[0]
 
-  @lazy
-  @property
+  @lazy_git_property(watching = 'config')
   def upstream(self):
     """The branch set as this branch's 'upstream', or None if none is set."""
     upstreamName = getUpstreamBranch(self.name)
