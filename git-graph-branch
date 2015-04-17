@@ -13,7 +13,8 @@ Options:
     -h --help               Show this screen.
     -w, --watch             Continue to watch for git repo changes after printing the graph.
     --profile               Profiles the app.
-    --no-ci                 Do not display continuous integration status indicators.
+    -l, --local             Only display information available from the local git repo.
+                            Continuous integration results will not be fetched.
 """
 import logging, re, sys, traceback
 from collections import Counter, defaultdict
@@ -228,7 +229,7 @@ def getPrintGraphArgs(options):
       sys.stderr.write('%s not a valid choice for %s (must be one of: %s)'
                        % (options[name], name, ", ".join(algorithms.keys())))
   return {
-    'ciTools' : () if options['--no-ci'] else (Stash(), TravisClient())
+    'ciTools' : () if options['--local'] else (Stash(), TravisClient())
   }
 
 if __name__ == '__main__':
