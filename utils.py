@@ -1,4 +1,4 @@
-import os, select, signal, subprocess
+import errno, os, select, signal, subprocess
 from collections import namedtuple
 from functools import update_wrapper
 from lazy import lazy
