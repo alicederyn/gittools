@@ -48,6 +48,7 @@ class Scheduler(threading.Thread):
   def retain(self):
     assert self.refcount > 0
     self.refcount += 1
+    return self
 
   def release(self):
     assert self.refcount > 0
@@ -58,6 +59,12 @@ class Scheduler(threading.Thread):
         with self._sleepingTasks:
           self._sleepingTasks.notify()
       self._executor.shutdown(False)
+
+  def __enter__(self):
+    return self.retain()
+
+  def __exit__(self, type, value, traceback):
+    self.release()
 
 class CompletedFuture(object):
   def __init__(self, value):
@@ -77,7 +84,8 @@ class NotDoneException(Exception): pass
 class Poller(object):
   """A lazy-compatible function that refreshes a computation periodically."""
   def __init__(self, scheduler, task, *args, **kwargs):
-    self.scheduler = scheduler
+    self.scheduler = scheduler.retain()
+    self.release_scheduler = True
     self.repeat_every = kwargs.pop('repeat_every', timedelta(minutes = 2))
     self.task = task
     self.args = args
@@ -88,7 +96,12 @@ class Poller(object):
 
   def __call__(self):
     if not self._asynchronous or self._future.done():
-      return self._future.result()
+      try:
+        return self._future.result()
+      finally:
+        if self.release_scheduler:
+          self.scheduler.release()
+        self.release_scheduler = False
     raise NotDoneException()
 
   def watch(self, callback):
