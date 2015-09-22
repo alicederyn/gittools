@@ -28,7 +28,7 @@ from travis import TravisClient
 from utils import window_size
 
 STATUS_ICONS = {
-  'orange': u'⌛ ',
+  'yellow': u'⌛ ',
   'green': u'💚 ',
   'red': u'🔥 ',
 }

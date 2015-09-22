@@ -41,7 +41,7 @@ class Stash(object):
   }
   STATUS_MAP = {
     'successful' : 'green',
-    'inProgress' : 'orange',
+    'inProgress' : 'yellow',
     'failed' : 'red',
   }
 
