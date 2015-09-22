@@ -7,7 +7,8 @@ from lazy import lazy
 from multiobserver import OBSERVER
 from utils import first, fractionalSeconds, staticproperty, LazyList, Sh, ShError
 
-__all__ = [ 'revparse', 'getUpstreamBranch', 'git_dir', 'Branch', 'GitListener', 'GitLockWatcher' ]
+__all__ = [ 'getUpstreamBranch', 'git_dir', 'lazy_git_property', 'revparse',
+            'Branch', 'GitListener', 'GitLockWatcher' ]
 
 # wait(None) blocks signals like KeyboardInterrupt
 # Use wait(99999) instead

@@ -1,38 +1,12 @@
-import getpass, json, keyring, posixpath, re, requests, urlparse, warnings
+import getpass, json, keyring, logging, posixpath, re, requests, urlparse, warnings
 from collections import Counter, defaultdict
-from git import Branch
+from git import Branch, lazy_git_property
 from itertools import count
 from scheduling import NotDoneException, Poller, Scheduler
 from lazy import lazy
 from utils import Sh, ShError
 
 class Stash(object):
-
-  def __init__(self):
-    serversByRemote = self._getServers()
-    servers = frozenset(serversByRemote.values())
-    branchesByCommit = defaultdict(set)
-    commitsByServer = defaultdict(set)
-    for remoteBranch in Branch.REMOTES:
-      remote, branchName = remoteBranch.name.split('/', 1)
-      if remote in serversByRemote:
-        server = serversByRemote[remote]
-        commit = remoteBranch.latestCommit.hash
-        commitsByServer[server].add(commit)
-        branchesByCommit[commit].add(branchName)
-    self._branchesByCommit = branchesByCommit
-    self._commitsByServer = commitsByServer
-    self._auth = self._getAuth(servers)
-
-    if servers:
-      self._scheduler = Scheduler()
-      self._futuresByServer = {
-          server : lazy(Poller(self._scheduler, self._getServerStatsByBranch, server))
-              for server in servers
-      }
-    else:
-      self._scheduler = None
-      self._futuresByServer = {}
 
   STASH_REGEX = re.compile('^git[@](stash[^:]*):.*$')
 
@@ -45,25 +19,11 @@ class Stash(object):
     'failed' : 'red',
   }
 
-  def _getServers(self):
-    """Remote Stash servers, keyed by remote name."""
-    try:
-      raw = Sh('git', 'config', '--get-regexp', 'remote\..*\.url')
-      remotes = {}
-      for l in raw:
-        key, server = l.split(' ', 1)
-        name = key.split('.', 1)[-1].rsplit('.', 1)[0]
-        hostname = Stash._getStashHostname(server)
-        if hostname:
-          remotes[name] = 'https://%s' % hostname
-      return remotes
-    except ShError, e:
-      if e.returncode == 1:
-        return {}
-      raise
+  def __init__(self):
+    self._pollers = {}
 
   @staticmethod
-  def _getStashHostname(url):
+  def hostname(url):
     stash_match = Stash.STASH_REGEX.match(url)
     if stash_match:
       match = stash_match.group(1)
@@ -74,6 +34,24 @@ class Stash(object):
       if url.hostname == 'stash' or url.hostname.startswith('stash.'):
         return url.hostname
     return None
+
+  @lazy_git_property(watching = 'config')
+  def _serversByRemote(self):
+    """Remote Stash servers, keyed by remote name."""
+    try:
+      raw = Sh('git', 'config', '--get-regexp', 'remote\..*\.url')
+      remotes = {}
+      for l in raw:
+        key, server = l.split(' ', 1)
+        name = key.split('.', 1)[-1].rsplit('.', 1)[0]
+        hostname = Stash.hostname(server)
+        if hostname:
+          remotes[name] = 'https://%s' % hostname
+      return remotes
+    except ShError, e:
+      if e.returncode == 1:
+        return {}
+      raise
 
   def _getWithAuth(self, url, auth):
     with warnings.catch_warnings():
@@ -99,32 +77,64 @@ class Stash(object):
       auth[server] = (user, password)
     return auth
 
-  def _getRawServerStats(self, server, commits):
+  def _getRawServerStats(self, server, commits, auth):
     try:
       with warnings.catch_warnings():
         warnings.simplefilter(
             'ignore', requests.packages.urllib3.exceptions.InsecureRequestWarning)
-        r = requests.post(posixpath.join(server, 'rest/build-status/1.0/commits/stats'),
-                          data = json.dumps(list(commits)),
-                          auth = self._auth[server],
+        url = posixpath.join(server, 'rest/build-status/1.0/commits/stats')
+        data = json.dumps(list(commits))
+        r = requests.post(url,
+                          data = data,
+                          auth = auth,
                           headers = { 'content-type': 'application/json' },
                           **Stash.PARAMS)
       if r.status_code >= 400:
         raise RuntimeError('Got %d fetching %s as %s' % (r.status_code, url, auth[0]))
       return r.json()
+    except requests.ConnectionError:
+      return {}
     except IOError:
+      logging.exception("Failed to get stats for Stash server %s" % server)
       return {}
 
-  def _getServerStatsByBranch(self, server):
+  def _getServerStatsByBranch(self, server, commitsByServer, branchesByCommit, auth):
     statsByBranch = defaultdict(Counter)
-    commits = self._commitsByServer[server]
-    rawStats = self._getRawServerStats(server, commits)
+    commits = commitsByServer[server]
+    rawStats = self._getRawServerStats(server, commits, auth)
     for commit, stats in rawStats.iteritems():
       colorCodedStats = { Stash.STATUS_MAP[k] : v for k, v in stats.iteritems()
                           if k in Stash.STATUS_MAP }
-      for branch in self._branchesByCommit[commit]:
+      for branch in branchesByCommit[commit]:
         statsByBranch[branch].update(colorCodedStats)
     return statsByBranch
+
+  @lazy
+  @property
+  def _futuresByServer(self):
+    if not self._serversByRemote:
+      return {}
+
+    servers = frozenset(self._serversByRemote.values())
+    authByServer = self._getAuth(servers)
+    branchesByCommit = defaultdict(set)
+    commitsByServer = defaultdict(set)
+    for remoteBranch in Branch.REMOTES:
+      remote, branchName = remoteBranch.name.split('/', 1)
+      if remote in self._serversByRemote:
+        server = self._serversByRemote[remote]
+        commit = remoteBranch.latestCommit.hash
+        commitsByServer[server].add(commit)
+        branchesByCommit[commit].add(branchName)
+
+    _oldPollers = self._pollers
+    try:
+      with Scheduler() as scheduler:
+        return { server : lazy(Poller(scheduler, self._getServerStatsByBranch, server,
+                                 commitsByServer, branchesByCommit, authByServer[server]))
+                for server in servers }
+    finally:
+      pass
 
   @lazy
   @property
@@ -136,9 +146,6 @@ class Stash(object):
           statsByBranch[b].update(stats)
       except NotDoneException:
         pass
-    if self._scheduler:
-      self._scheduler.release()
-      self._scheduler = None
     return statsByBranch
 
   def ciStatus(self, branch):
