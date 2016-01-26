@@ -1,14 +1,15 @@
 Chris's git tools
 =================
 
-This project contains a set of git CLI tools maintained by cpurcell@palantir.com. The most stable is `git-graph-branch`, which displays a clean tree of your local git repository's branches, including forks and merges, whether the branch is in sync with origin (Stash), and whether tests are currently passing in CI.
+This project contains a set of git CLI tools maintained by cpurcell@palantir.com. The most stable is `git-graph-branch`, which displays a clean tree of your local git repository's branches, including forks and merges, whether the branch is in sync with origin (Stash/GitHub), and whether tests are currently passing in CI.
 
 To use any of the tools, I recommend setting up git aliases to them (git-rebase-branch relies on this to function) in `~/.gitconfig`:
 
     [alias]
-      graph-branch = ! /Users/cpurcell/bin/gittools/git-graph-branch
-      rebase-branch = ! /Users/cpurcell/bin/gittools/git-rebase-branch
-      split-pick = ! /Users/cpurcell/bin/gittools/git-split-pick
+      graph-branch = ! ~/bin/gittools/git-graph-branch
+      mirror = ! ~/bin/gittools/git-mirror
+      rebase-branch = ! ~/bin/gittools/git-rebase-branch
+      split-pick = ! ~/bin/gittools/git-split-pick
 
 git graph-branch
 ----------------
