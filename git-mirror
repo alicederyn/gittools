@@ -1,0 +1,29 @@
+#!/usr/local/bin/python
+# coding=utf-8
+"""Usage: git-mirror <source> <destination>"""
+
+import os, sys
+from docopt import docopt
+from shutil import rmtree
+from utils import Sh, ShError
+
+if __name__ == '__main__':
+  arguments = docopt(__doc__)
+  src = os.path.abspath(arguments['<source>'])
+  dst = os.path.abspath(arguments['<destination>'])
+
+  if os.path.exists(dst):
+    print >> sys.stderr, 'git-mirror: %s: File exists' % (arguments['<destination>'],)
+    sys.exit(100)
+
+  os.makedirs(os.path.join(dst, '.git', 'logs'))
+  # ref: refs/heads/master
+  with open(os.path.join(dst, '.git', 'HEAD'), 'w') as head:
+    print >> head, 'ref: refs/heads/empty'
+  str(Sh('touch', os.path.join(dst, '.git', 'HEAD')))
+for file in ('FETCH_HEAD', 'config', 'description', 'hooks', 'info', 'logs/refs', 'objects', 'packed-refs', 'refs', 'rr-cache'):
+  try:
+    os.symlink(os.path.join(src, '.git', file), os.path.join(dst, '.git', file))
+  except OSError, e:
+    raise OSError('%s: %s' % (e, os.path.join(dst, '.git', file)))
+
