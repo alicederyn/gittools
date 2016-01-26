@@ -1,6 +1,9 @@
 #!/usr/local/bin/python
 # coding=utf-8
-"""Usage: git-mirror <source> <destination>"""
+"""Usage: git-mirror <source> <destination>
+
+Sets up destination as a mirror of source. All git configuration will be symlinked to source, except for current branch and staging information. This means you can work on the same repository, sharing all local commits to branches. Typically, this is most useful when you need to work on a different branch, but you have something long-running in your clone, so cannot simply change branch.
+"""
 
 import os, sys
 from docopt import docopt
