@@ -67,7 +67,7 @@ class TravisClient(object):
       warnings.filterwarnings('ignore', message='.*InsecurePlatformWarning.*')
       try:
         travis = self._travis()
-      except (IOError, NotDoneException, travispy.errors.TravisError):
+      except (ShError, IOError, NotDoneException, travispy.errors.TravisError):
         return defaultdict(dict)
       remoteSlugs = self._remoteSlugs
     scheduler = Scheduler(10)
