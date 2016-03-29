@@ -1,6 +1,6 @@
 import re, travispy, warnings
 from collections import defaultdict
-from git import Branch
+from git import Branch, lazy_git_property
 from lazy import lazy
 from multiprocessing.pool import ThreadPool
 from scheduling import NotDoneException, Poller, Scheduler
@@ -15,8 +15,7 @@ class TravisClient(object):
     # Kick off asynchronous requests
     self._futuresByBranchAndRemote
 
-  @lazy
-  @property
+  @lazy_git_property(watching = 'config')
   def _githubToken(self):
     return Sh('git', 'config', 'github.token').next()
 
@@ -49,10 +48,15 @@ class TravisClient(object):
         remotes[branchName].add(remote)
     return remotes
 
-  def _travis(self):
+  def _travis(self, token):
     with warnings.catch_warnings():
       warnings.filterwarnings('ignore', message='.*InsecurePlatformWarning.*')
-      return TravisPy.github_auth(self._githubToken)
+      # TODO: Run this on a single worker thread and have the others wait
+      return TravisPy.github_auth(token)
+
+  def _getRemoteStatus(self, token, slug, branch):
+    travis = self._travis(token)
+    return TravisClient.fetchStatus(travis, slug, branch)
 
   @staticmethod
   def fetchStatus(travis, slug, branch):
@@ -66,8 +70,8 @@ class TravisClient(object):
     with warnings.catch_warnings():
       warnings.filterwarnings('ignore', message='.*InsecurePlatformWarning.*')
       try:
-        travis = self._travis()
-      except (ShError, IOError, NotDoneException, travispy.errors.TravisError):
+        token = self._githubToken
+      except ShError:
         return defaultdict(dict)
       remoteSlugs = self._remoteSlugs
     scheduler = Scheduler(10)
@@ -76,7 +80,7 @@ class TravisClient(object):
       for remote in remotes:
         slug = remoteSlugs[remote]
         futures[branch][remote] = lazy(Poller(
-            scheduler, TravisClient.fetchStatus, travis, slug, branch))
+            scheduler, self._getRemoteStatus, token, slug, branch))
     return futures
 
   @lazy
