@@ -281,7 +281,7 @@ class Branch(object):
     Merges will only list commit hashes, not branches.
 
     """
-    raw = Sh("git", "log", "--first-parent", "--format=%H:%P:%s", self.name)
+    raw = Sh("git", "log", "--first-parent", "--format=%H:%P:%s", self.name, "--")
     commits = (Commit(h, s.strip(), m.split(" ")[1:]) for h, m, s in
                (l.split(":", 2) for l in raw))
     return LazyList(commits)
