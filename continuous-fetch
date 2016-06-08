@@ -1,0 +1,19 @@
+#!/usr/local/bin/python
+from datetime import timedelta
+from git import GitLockWatcher
+from time import sleep
+from utils import Sh
+
+def continuous_fetch(remote = '--all',
+                     every = timedelta(minutes = 2),
+                     unused_for = timedelta(seconds = 10)):
+  with GitLockWatcher(latency = unused_for) as lock:
+    lock.await_unlocked()
+    Sh('git', 'fetch', remote)
+    sleep(every.total_seconds())
+
+if __name__ == '__main__':
+  try:
+    continuous_fetch()
+  except KeyboardInterrupt:
+    pass
