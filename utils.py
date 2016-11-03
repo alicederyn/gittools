@@ -48,6 +48,11 @@ class Sh(object):
     self._out = []
     self._err = []
 
+  def execute(self):
+    with self as lines:
+      for line in lines:
+        pass
+
   def __iter__(self):
     return self
 

@@ -2,15 +2,20 @@
 from datetime import timedelta
 from git import GitLockWatcher
 from time import sleep
-from utils import Sh
+from utils import Sh, ShError
 
 def continuous_fetch(remote = '--all',
                      every = timedelta(minutes = 2),
                      unused_for = timedelta(seconds = 10)):
   with GitLockWatcher(latency = unused_for) as lock:
-    lock.await_unlocked()
-    Sh('git', 'fetch', remote)
-    sleep(every.total_seconds())
+    while True:
+      lock.await_unlocked()
+      try:
+        Sh('git', 'fetch', '-p', remote).execute()
+      except ShError, e:
+        if 'fatal: Could not read from remote repository.' not in e.stderr:
+          raise e
+      sleep(every.total_seconds())
 
 if __name__ == '__main__':
   try:
