@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -e
+
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+  echo "Usage: git push-pull [<repository> [<branch>]]"
+  echo
+  echo "Pulls in any remote changes before pushing local changes back out."
+  echo "Note: Uses push --force-with-lease internally to avoid race conditions."
+  exit 0
+fi
+
+BRANCH=${2:-$(git symbolic-ref --short HEAD)}
+if [ "$1" = "" ]; then
+  REF=$(git rev-parse --symbolic-full-name @{push})
+  TARGET=$(echo $REF | sed -e 's,refs/remotes/,,' -e 's,/.*,,')
+else
+  TARGET=$1
+fi
+
+git pull $TARGET $BRANCH
+git push --force-with-lease $TARGET $BRANCH
+
