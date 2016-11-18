@@ -23,7 +23,6 @@ from docopt import docopt
 from git import Branch, revparse
 from layout import layout
 from lazy import lazy, lazy_invalidation
-from stash import Stash
 from travis import TravisClient
 from utils import window_size
 
@@ -229,7 +228,7 @@ def getPrintGraphArgs(options):
       sys.stderr.write('%s not a valid choice for %s (must be one of: %s)'
                        % (options[name], name, ", ".join(algorithms.keys())))
   return {
-    'ciTools' : () if options['--local'] else (Stash(), TravisClient())
+    'ciTools' : () if options['--local'] else (TravisClient(),)
   }
 
 if __name__ == '__main__':
