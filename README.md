@@ -1,7 +1,7 @@
 Chris's git tools
 =================
 
-This project contains a set of git CLI tools maintained by cpurcell@palantir.com. The most stable is `git graph-branch`, which displays a clean tree of your local git repository's branches, including forks and merges, whether the branch is in sync with origin (Stash/GitHub), and whether tests are currently passing in CI.
+This project contains a set of git CLI tools maintained by cpurcell@palantir.com. The most stable is `git graph-branch`, which displays a clean tree of your local git repository's branches, including forks and merges, whether the branch is in sync with origin (GitHub only), and whether tests are currently passing in CI.
 
 To use the tools, add this checkout to your PATH.
 
