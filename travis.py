@@ -6,6 +6,7 @@ from multiprocessing.pool import ThreadPool
 from scheduling import NotDoneException, Poller, Scheduler
 from travispy import TravisPy
 from utils import Sh, ShError
+from weakref import WeakValueDictionary
 
 class TravisClient(object):
 
@@ -13,6 +14,8 @@ class TravisClient(object):
 
   def __init__(self):
     # Kick off asynchronous requests
+    self._pollers = WeakValueDictionary()
+    self._scheduler = Scheduler(1) # TravisPy.github_auth is not thread-safe
     self._futuresByBranchAndRemote
 
   @lazy_git_property(watching = 'config')
@@ -48,15 +51,15 @@ class TravisClient(object):
         remotes[branchName].add(remote)
     return remotes
 
-  def _travis(self, token):
+  def _auth(self, token):
     with warnings.catch_warnings():
       warnings.filterwarnings('ignore', message='.*InsecurePlatformWarning.*')
       # TODO: Run this on a single worker thread and have the others wait
       return TravisPy.github_auth(token)
 
   def _getRemoteStatus(self, token, slug, branch):
-    travis = self._travis(token)
-    return TravisClient.fetchStatus(travis, slug, branch)
+    auth = self._auth(token)
+    return TravisClient.fetchStatus(auth, slug, branch)
 
   @staticmethod
   def fetchStatus(travis, slug, branch):
@@ -74,13 +77,17 @@ class TravisClient(object):
       except ShError:
         return defaultdict(dict)
       remoteSlugs = self._remoteSlugs
-    scheduler = Scheduler(10)
     futures = defaultdict(dict)
     for branch, remotes in self._remotesByBranchName.iteritems():
       for remote in remotes:
         slug = remoteSlugs[remote]
-        futures[branch][remote] = lazy(Poller(
-            scheduler, self._getRemoteStatus, token, slug, branch))
+        if (slug, branch) in self._pollers:
+          poller = self._pollers[(slug, branch)]
+        else:
+          poller = Poller(self._scheduler, self._getRemoteStatus, token, slug, branch)
+          self._pollers[(slug, branch)] = poller
+        futures[branch][remote] = lazy(poller)
+    self._futures = futures # Ensure pollers are not garbage-collected too soon
     return futures
 
   @lazy
@@ -92,4 +99,3 @@ class TravisClient(object):
       except (IOError, NotDoneException, travispy.errors.TravisError):
         pass
     return stats
-
