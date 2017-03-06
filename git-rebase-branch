@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/env python
 """Usage:
     git-rebase-branch [--start] [options] [<branch>]
     git-rebase-branch --create <branch>
