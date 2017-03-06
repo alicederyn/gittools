@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/env python
 import os.path, sys, watchdog.events, watchdog.observers
 from git import git_dir, Branch, GitListener, GitLockWatcher
 from itertools import islice
