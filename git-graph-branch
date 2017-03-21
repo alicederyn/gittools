@@ -105,7 +105,14 @@ class PriorityBranchIterator(object):
 
 @lazy
 def layoutAllBranches():
-  branches = sorted(Branch.ALL, key = lambda b : b.modtime or datetime.fromtimestamp(1))
+  localBranches = Branch.ALL
+  relevantBranches = set(localBranches)
+  # Merge in any remote branches that are upstream of a local branch of a different name
+  for branch in localBranches:
+    if branch.upstream is not None and branch.upstream not in localBranches:
+      if branch.upstream.name.split('/', 1)[-1] != branch.name:
+        relevantBranches.add(branch.upstream)
+  branches = sorted(relevantBranches, key = lambda b : b.modtime or datetime.fromtimestamp(1))
   branches = tuple(PriorityBranchIterator(BranchBlockers(branches)))
   return zip(branches, layout(branches))
 
