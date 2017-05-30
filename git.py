@@ -72,7 +72,7 @@ class GitLockWatcher(watchdog.events.FileSystemEventHandler):
 def revparse(*args):
   """Returns the result of `git rev-parse *args`."""
   try:
-    return str(Sh("git", "rev-parse", *args)).strip()
+    return str(Sh("/usr/local/bin/git", "rev-parse", *args)).strip()
   except ShError, e:
     raise ValueError(e)
 
@@ -267,7 +267,7 @@ class Branch(object):
   @lazy_git_property(watching = 'logs/%fullName%')
   def _refLog(self):
     try:
-      rawlog = Sh("git", "log", "-g", "%s@{now}" % self.name,
+      rawlog = Sh("/usr/local/bin/git", "log", "-g", "%s@{now}" % self.name,
                   "--date=raw", "--format=%gd %H")
       matches = (Branch._REFLOG_RE.search(l) for l in rawlog)
       return tuple(RefLine(int(m.group(1)), m.group(2)) for m in matches if m)
@@ -281,7 +281,7 @@ class Branch(object):
     Merges will only list commit hashes, not branches.
 
     """
-    raw = Sh("git", "log", "--first-parent", "--format=%H:%P:%s", self.name, "--")
+    raw = Sh("/usr/local/bin/git", "log", "--first-parent", "--format=%H:%P:%s", self.name, "--")
     commits = (Commit(h, s.strip(), m.split(" ")[1:]) for h, m, s in
                (l.split(":", 2) for l in raw))
     return LazyList(commits)
@@ -349,7 +349,7 @@ class Branch(object):
   @lazy_git_property(watching = 'refs/heads/%name%')
   def modtime(self):
     """The timestamp of the latest commit to this branch."""
-    with Sh("git", "log", "-n5", "--format=%at", self.name, "--") as log:
+    with Sh("/usr/local/bin/git", "log", "-n5", "--format=%at", self.name, "--") as log:
       for line in log:
         modtime = int(line)
         if modtime != 1:
@@ -367,7 +367,7 @@ class Branch(object):
         if c == self.upstreamCommit:
           break
         for rev in c.merges:
-          allCommits.update(Sh("git", "log", "--first-parent", "--format=%H", rev))
+          allCommits.update(Sh("/usr/local/bin/git", "log", "--first-parent", "--format=%H", rev))
     parentCommits = set()
     for p in self.parents:
       for c in p.allCommits:

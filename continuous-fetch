@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/local/bin/python
 from datetime import timedelta
 from git import GitLockWatcher
 from time import sleep
@@ -11,7 +11,7 @@ def continuous_fetch(remote = '--all',
     while True:
       lock.await_unlocked()
       try:
-        Sh('git', 'fetch', '-p', remote).execute()
+        Sh('/usr/local/bin/git', 'fetch', '-p', remote).execute()
       except ShError, e:
         if 'fatal: Could not read from remote repository.' not in e.stderr:
           raise e
