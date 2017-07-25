@@ -57,6 +57,8 @@ class Row(object):
       down = column in self.down
       if self._min == column == self._max:
         left = right = True
+      elif self.at == column and column in self.down:
+        left = right = True
       else:
         left = self._min < column <= self._max
         right = self._min <= column < self._max

@@ -28,11 +28,12 @@ def test_row_unicode():
   assert unicode(Row(0, down={0})) == u'┬'
   assert unicode(Row(0, up={0})) == u'┴'
   assert unicode(Row(1, up={0}, down={0})) == u'├▶╴'
-  assert unicode(Row(4, up={4}, down={1,2,3,4})) == u'  ┌─┬─┬▶┤'
-  assert unicode(Row(4, up={4}, down={0,4}, through={1,2,3})) == u'┌┄│┄│┄│▶┤'
+  assert unicode(Row(4, up={4}, down={1,2,3,4})) == u'  ┌─┬─┬▶┼'
+  assert unicode(Row(4, up={4}, down={0,4}, through={1,2,3})) == u'┌┄│┄│┄│▶┼'
   assert unicode(Row(0, up={0}, down={0}, through={1,2,3,4})) == u'┼ │ │ │ │'
-  assert unicode(Row(4, up={4}, down={1,3,4}, through={2,5})) == u'  ┌┄│┄┬▶┤ │'
+  assert unicode(Row(4, up={4}, down={1,3,4}, through={2,5})) == u'  ┌┄│┄┬▶┼ │'
   assert unicode(Row(2, up={0,1,2,3,4}, down={0,1,2,3,4})) == u'├─┼▶┼◀┼─┤'
+  assert unicode(Row(0, down={0,1})) == u'┬◀┐'
 
 def test_row_equality():
   assert Row(2) == Row(2)
@@ -148,8 +149,8 @@ def test_row_unicode_branch_merge_to_head():
       ┼
       ┼
       ┼
-      ├◀┬─┬─┐
-      ├◀│┄│┄│┄┐
+      ┼◀┬─┬─┐
+      ┼◀│┄│┄│┄┐
       ┼ │ │ │ │
       ├┄│┄│┄│▶┘
       ├┄│┄│▶┘
@@ -171,7 +172,7 @@ def test_row_unicode_remerge_to_head():
   output = ''.join(unicode(row) + '\n' for row in grid)
   assert output == dedent(u"""\
         ┬
-      ┌◀┤
+      ┬◀┤
       ┼ │
       ├▶┘
       ┴
@@ -187,10 +188,28 @@ def test_row_unicode_simple_merge_to_head_with_crossunder():
   ]
   output = ''.join(unicode(row) + '\n' for row in grid)
   assert output == dedent(u"""\
-      ┌◀┐
+      ┬◀┐
       ├┄│▶╴
       ┼ │
       ├▶┘
       ┴
   """)
 
+def test_row_unicode_remerge_head_into_branch():
+  grid = [
+      Row(at = 0, down = [0]),
+      Row(at = 1, down = [1], through=[0]),
+      Row(at = 1, up = [0,1], down = [0,1]),
+      Row(at = 0, up = [0], down = [0], through=[1]),
+      Row(at = 1, up = [0,1], down = [0]),
+      Row(at = 0, up = [0]),
+  ]
+  output = ''.join(unicode(row) + '\n' for row in grid)
+  assert output == dedent(u"""\
+      ┬
+      │ ┬
+      ├▶┼
+      ┼ │
+      ├▶┘
+      ┴
+  """)
