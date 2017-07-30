@@ -13,10 +13,8 @@ class TravisClient(object):
   SLUG_REGEX = re.compile('^git[@]github[.]com:(.*)[.]git$')
 
   def __init__(self):
-    # Kick off asynchronous requests
     self._pollers = WeakValueDictionary()
     self._scheduler = Scheduler(1) # TravisPy.github_auth is not thread-safe
-    self._futuresByBranchAndRemote
 
   @lazy_git_property(watching = 'config')
   def _githubToken(self):
@@ -52,18 +50,24 @@ class TravisClient(object):
     return remotes
 
   def _auth(self, token):
+    if hasattr(self, '_cachedAuth'):
+      return self._cachedAuth
     with warnings.catch_warnings():
       warnings.filterwarnings('ignore', message='.*InsecurePlatformWarning.*')
-      # TODO: Run this on a single worker thread and have the others wait
-      return TravisPy.github_auth(token)
+      self._cachedAuth = TravisPy.github_auth(token)
+      return self._cachedAuth
 
-  def _getRemoteStatus(self, token, slug, branch):
+  def _getRemoteStatus(self, token, slug, branch, hash):
     auth = self._auth(token)
-    return TravisClient.fetchStatus(auth, slug, branch)
+    return TravisClient.fetchStatus(auth, slug, branch, hash)
 
   @staticmethod
-  def fetchStatus(travis, slug, branch):
-    return travis.branch(branch, slug).color
+  def fetchStatus(travis, slug, branch, hash):
+    branchInfo = travis.branch(branch, slug)
+    if branchInfo.commit.sha == hash:
+      return travis.branch(branch, slug).color
+    else:
+      return None
 
   @lazy
   @property
@@ -81,11 +85,12 @@ class TravisClient(object):
     for branch, remotes in self._remotesByBranchName.iteritems():
       for remote in remotes:
         slug = remoteSlugs[remote]
-        if (slug, branch) in self._pollers:
-          poller = self._pollers[(slug, branch)]
+        hash = Branch("%s/%s" % (remote, branch)).latestCommit.hash
+        if (slug, branch, hash) in self._pollers:
+          poller = self._pollers[(slug, branch, hash)]
         else:
-          poller = Poller(self._scheduler, self._getRemoteStatus, token, slug, branch)
-          self._pollers[(slug, branch)] = poller
+          poller = Poller(self._scheduler, self._getRemoteStatus, token, slug, branch, hash)
+          self._pollers[(slug, branch, hash)] = poller
         futures[branch][remote] = lazy(poller)
     self._futures = futures # Ensure pollers are not garbage-collected too soon
     return futures
