@@ -159,7 +159,7 @@ def printGraph(clearScreen = False, ciTools = ()):
       else:
         remotes = u' 🔷 '
     ciStatus = u''
-    ciStatuses = [ status for tool in ciTools for status in tool.ciStatus(b).values() ]
+    ciStatuses = [ status for tool in ciTools for status in tool.ciStatus(b).values() if status ]
     if ciStatuses:
       ciStatus = u' ' + ''.join(STATUS_ICONS[status] for status in ciStatuses)
     unmerged = u''
