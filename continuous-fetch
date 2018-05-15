@@ -12,6 +12,7 @@ def continuous_fetch(remote = '--all',
     while True:
       lock.await_unlocked()
       try:
+        Sh('/usr/local/bin/git', 'fetch', '--prune', remote).execute()
         Sh('/usr/local/bin/git', 'fetch', '--tags', '--prune', remote).execute()
       except ShError, e:
         traceback.print_exc()
