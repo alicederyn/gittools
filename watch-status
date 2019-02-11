@@ -14,7 +14,9 @@ class git_status(object):
   def watch(self, callback):
     self._listener = GitListener(root_dir = os.path.join(git_dir(), '..'),
                                  exclude_globs = ['.git/*'],
-                                 include_globs = ['.git/index', '.git/refs/heads/*'])
+                                 include_globs = ['.git/index',
+                                                  '.git/info/exclude',
+                                                  '.git/refs/heads/*'])
     self._listener.watch(callback)
     self._git_lock = GitLockWatcher()
     self._git_lock.__enter__()
