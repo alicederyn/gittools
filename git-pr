@@ -1,0 +1,15 @@
+#!/bin/bash
+
+set -e
+
+ORIGIN_URL=$(git config --get remote.origin.url | sed -E 's,(.*)[@](.*):(.*)\.git,https://\2/\3,')
+UPSTREAM_BRANCH=$(git rev-parse --abbrev-ref @{u} | sed -E 's,origin/,,g')
+HEAD_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+if [[ "$UPSTREAM_BRANCH" != "$HEAD_BRANCH" ]]; then
+  PR_URL="${ORIGIN_URL}/pull/new/${UPSTREAM_BRANCH}...${HEAD_BRANCH}"
+else
+  PR_URL="${ORIGIN_URL}/pull/new/${HEAD_BRANCH}"
+fi
+
+open "$PR_URL"
