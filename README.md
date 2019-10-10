@@ -41,12 +41,12 @@ If you have not used these defaults before, you may want to set up upstream info
 
 git graph-branch will then use this upstream information to determine a tree structure for your branches. For instance, you might see something like:
 
-    ─  cleanup/immutables 🔷  🔥
+    ─  cleanup/immutables 🔷 🔥
     ┬  feature/java.8
-    ┼  feature/herc.strategy.api.plugin 🔷  💚 
+    ┼  feature/herc.strategy.api.plugin 🔷 💚 
     ┼  feature/no.more.internal.cluster.dispatch.connection 🔷 💚 
-    ├▶╴  feature/distTar-unbreakable 🔷  💚
-    ┴  develop 🔶  💚  ② unmerged
+    ├▶╴  feature/distTar-unbreakable 🔷 💚
+    ┴  develop 🔶 💚 ② unmerged
     ─  workspace
 
 In this case, `feature/java.8` is branched off `feature/herc.strategy.api.plugin`, which is branched off `feature/no.more.internal.cluster.dispatch.connection`, which itself is branched off of `develop` (and all four are passing CI tests!).
