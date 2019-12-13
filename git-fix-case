@@ -1,0 +1,31 @@
+#!/bin/bash
+
+set -e
+
+if [[ "$#" -ne 0 ]]; then
+  echo "Usage: git fix-case"
+  echo
+  echo "    Corrects casing of checked out files and directories if they mismatch the repository"
+  exit 0
+fi
+
+for FILE in $(git ls-files); do
+  while [[ "$FILE" != "." ]]; do
+
+    # Do a case-insensitive search for this filename
+    CURFILE=$(find $(dirname "$FILE") -iname "$(basename "$FILE")" -maxdepth 1)
+
+    if [[ ! -z "$CURFILE" ]]; then
+
+      # Find will output ./x if dirname is .
+      EXPFILE="$(dirname "$FILE")/$(basename "$FILE")"
+
+      if [[ "$EXPFILE" != "$CURFILE" ]]; then
+        echo "Fixing casing of $FILE"
+        mv "$CURFILE" "$EXPFILE"
+      fi
+    fi
+
+    FILE=$(dirname "$FILE")
+  done
+done
