@@ -9,7 +9,10 @@ if [[ "$#" -ne 0 ]]; then
   exit 0
 fi
 
-for FILE in $(git ls-files); do
+IFS=$'\n'
+FILES=($(git ls-files))
+
+for FILE in ${FILES[@]}; do
   while [[ "$FILE" != "." ]]; do
 
     # Do a case-insensitive search for this filename
