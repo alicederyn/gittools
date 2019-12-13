@@ -5,6 +5,12 @@ This project contains a set of git CLI tools maintained by alice.purcell@oaknort
 
 To use the tools, add this checkout to your PATH.
 
+git fix-case
+------------
+
+A quick 'n dirty script that attempts to reconcile case sensitivity differences between git and the local filesystem. Useful on Macs.
+
+
 git graph-branch
 ----------------
 
