@@ -30,6 +30,8 @@ git graph-branch
         -l, --local             Only display information available from the local git repo.
                                 Continuous integration results will not be fetched.
 
+This tool is optimized for [the Hack font](https://github.com/source-foundry/Hack), and may not look as good with other font choices.
+
 To get the best out of git graph-branch, I recommend a few configuration changes to your git checkout (`/path/to/repo/.git/config`, or `~/.gitconfig` if you would like to make these changes to every checkout); these will also give you better defaults for several git commands.
 
     [branch]
