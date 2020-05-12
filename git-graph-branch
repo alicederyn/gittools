@@ -121,7 +121,9 @@ def stripEscapeCodes(s):
   return ESCAPE.sub('', s)
 
 SURROGATE_PAIR = re.compile(u'[\ud800-\udbff][\udc00-\udfff]', re.UNICODE)
-DOUBLE_WIDTH = re.compile(u'[\u1b00-\u1bff]|[\u3dd8][\udc00-\udfff]', re.UNICODE)
+# \U0001f538 - Small orange diamond
+# \U0001f539 - Small blue diamond
+DOUBLE_WIDTH = re.compile(u'[\u1b00-\u1bff\U0001f538\U0001f539]|[\u3dd8][\udc00-\udfff]', re.UNICODE)
 def displayLen(s):
   return len(SURROGATE_PAIR.sub('.', DOUBLE_WIDTH.sub('..', s)))
 
