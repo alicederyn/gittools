@@ -1,7 +1,7 @@
 # coding=utf-8
 import sys
-from layout import Row, layout
-from StringIO import StringIO
+from .layout import Row, layout
+from io import StringIO
 from textwrap import dedent
 
 class Node(object):
@@ -18,22 +18,22 @@ class Node(object):
 
 def test_row_repr():
   assert repr(Row(2)) == "Row(at = 2)"
-  assert repr(Row(2, up = xrange(3))) == "Row(at = 2, up = {0,1,2})"
+  assert repr(Row(2, up = range(3))) == "Row(at = 2, up = {0,1,2})"
   assert (repr(Row(0, down = (1,), through = (2, 4)))
           == "Row(at = 0, down = {1}, through = {2,4})")
 
 def test_row_unicode():
-  assert unicode(Row(2)) == u'    ─'
-  assert unicode(Row(0, up={0}, down={0})) == u'┼'
-  assert unicode(Row(0, down={0})) == u'┬'
-  assert unicode(Row(0, up={0})) == u'┴'
-  assert unicode(Row(1, up={0}, down={0})) == u'├▶╴'
-  assert unicode(Row(4, up={4}, down={1,2,3,4})) == u'  ┌─┬─┬▶┼'
-  assert unicode(Row(4, up={4}, down={0,4}, through={1,2,3})) == u'┌┄│┄│┄│▶┼'
-  assert unicode(Row(0, up={0}, down={0}, through={1,2,3,4})) == u'┼ │ │ │ │'
-  assert unicode(Row(4, up={4}, down={1,3,4}, through={2,5})) == u'  ┌┄│┄┬▶┼ │'
-  assert unicode(Row(2, up={0,1,2,3,4}, down={0,1,2,3,4})) == u'├─┼▶┼◀┼─┤'
-  assert unicode(Row(0, down={0,1})) == u'┬◀┐'
+  assert str(Row(2)) == '    ─'
+  assert str(Row(0, up={0}, down={0})) == '┼'
+  assert str(Row(0, down={0})) == '┬'
+  assert str(Row(0, up={0})) == '┴'
+  assert str(Row(1, up={0}, down={0})) == '├▶╴'
+  assert str(Row(4, up={4}, down={1,2,3,4})) == '  ┌─┬─┬▶┼'
+  assert str(Row(4, up={4}, down={0,4}, through={1,2,3})) == '┌┄│┄│┄│▶┼'
+  assert str(Row(0, up={0}, down={0}, through={1,2,3,4})) == '┼ │ │ │ │'
+  assert str(Row(4, up={4}, down={1,3,4}, through={2,5})) == '  ┌┄│┄┬▶┼ │'
+  assert str(Row(2, up={0,1,2,3,4}, down={0,1,2,3,4})) == '├─┼▶┼◀┼─┤'
+  assert str(Row(0, down={0,1})) == '┬◀┐'
 
 def test_row_equality():
   assert Row(2) == Row(2)
@@ -141,8 +141,8 @@ def test_row_unicode_branch_merge_to_head():
       Row(at = 0, up = [0]),
       Row(at = 0),
   ]
-  output = ''.join(unicode(row) + '\n' for row in grid)
-  assert output == dedent(u"""\
+  output = ''.join(str(row) + '\n' for row in grid)
+  assert output == dedent("""\
       ┬
       ┼
       ┼
@@ -169,8 +169,8 @@ def test_row_unicode_remerge_to_head():
       Row(at = 1, up = [0,1], down = [0]),
       Row(at = 0, up = [0]),
   ]
-  output = ''.join(unicode(row) + '\n' for row in grid)
-  assert output == dedent(u"""\
+  output = ''.join(str(row) + '\n' for row in grid)
+  assert output == dedent("""\
         ┬
       ┬◀┤
       ┼ │
@@ -186,8 +186,8 @@ def test_row_unicode_simple_merge_to_head_with_crossunder():
       Row(at = 1, up = [0,1], down = [0]),
       Row(at = 0, up = [0]),
   ]
-  output = ''.join(unicode(row) + '\n' for row in grid)
-  assert output == dedent(u"""\
+  output = ''.join(str(row) + '\n' for row in grid)
+  assert output == dedent("""\
       ┬◀┐
       ├┄│▶╴
       ┼ │
@@ -204,8 +204,8 @@ def test_row_unicode_remerge_head_into_branch():
       Row(at = 1, up = [0,1], down = [0]),
       Row(at = 0, up = [0]),
   ]
-  output = ''.join(unicode(row) + '\n' for row in grid)
-  assert output == dedent(u"""\
+  output = ''.join(str(row) + '\n' for row in grid)
+  assert output == dedent("""\
       ┬
       │ ┬
       ├▶┼

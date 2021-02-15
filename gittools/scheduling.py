@@ -2,7 +2,7 @@ import concurrent.futures.thread, threading
 from datetime import datetime, timedelta
 from functools import update_wrapper
 from heapq import heappush, heappop
-from utils import fractionalSeconds
+from .utils import fractionalSeconds
 
 class Scheduler(threading.Thread):
   """A half-baked ConcurrentThreadPoolExecutor implementation."""

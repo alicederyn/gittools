@@ -1,11 +1,11 @@
 import re, travispy, warnings
 from collections import defaultdict
-from git import Branch, lazy_git_property
-from lazy import lazy
+from .git import Branch, lazy_git_property
+from .lazy import lazy
 from multiprocessing.pool import ThreadPool
-from scheduling import NotDoneException, Poller, Scheduler
+from .scheduling import NotDoneException, Poller, Scheduler
 from travispy import TravisPy
-from utils import Sh, ShError
+from .utils import Sh, ShError
 from weakref import WeakValueDictionary
 
 class TravisClient(object):
@@ -18,7 +18,7 @@ class TravisClient(object):
 
   @lazy_git_property(watching = 'config')
   def _githubToken(self):
-    return Sh('git', 'config', 'github.token').next()
+    return next(Sh('git', 'config', 'github.token'))
 
   @lazy
   @property
@@ -34,7 +34,7 @@ class TravisClient(object):
         if slug_match:
           remotes[name] = slug_match.group(1)
       return remotes
-    except ShError, e:
+    except ShError as e:
       if e.returncode == 1:
         return {}
       raise
@@ -82,7 +82,7 @@ class TravisClient(object):
         return defaultdict(dict)
       remoteSlugs = self._remoteSlugs
     futures = defaultdict(dict)
-    for branch, remotes in self._remotesByBranchName.iteritems():
+    for branch, remotes in self._remotesByBranchName.items():
       for remote in remotes:
         slug = remoteSlugs[remote]
         hash = Branch("%s/%s" % (remote, branch)).latestCommit.hash
@@ -98,7 +98,7 @@ class TravisClient(object):
   @lazy
   def ciStatus(self, branch):
     stats = defaultdict(dict)
-    for remote, future in self._futuresByBranchAndRemote[branch.name].iteritems():
+    for remote, future in self._futuresByBranchAndRemote[branch.name].items():
       try:
         stats[remote] = future()
       except (IOError, NotDoneException, travispy.errors.TravisError):

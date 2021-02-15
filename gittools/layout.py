@@ -1,9 +1,9 @@
 # coding=utf-8
 from collections import namedtuple
-from utils import first
+from .utils import first
 
 class Row(object):
-  u"""Representation of a single row of a DAG.
+  """Representation of a single row of a DAG.
 
   self.at: the column containing the row's node
   self.up: columns with up edges this row's node is connected to other nodes on up the DAG
@@ -11,11 +11,11 @@ class Row(object):
   self.through: columns with edges this row's node is not connected to
 
   repr(self): Pythonic representation of this row, e.g. Row(at = 1, up={0,1}, down={0})
-  unicode(self): Unicode-art representation of this row, e.g. ├▶┘
+  str(self): Unicode-art representation of this row, e.g. ├▶┘
   """
 
-  BOX_CHARS = [ u" ", u"╵", u"╶", u"└", u"╷", u"│", u"┌", u"├",
-                u"╴", u"┘", u"─", u"┴", u"┐", u"┤", u"┬", u"┼" ]
+  BOX_CHARS = [ " ", "╵", "╶", "└", "╷", "│", "┌", "├",
+                "╴", "┘", "─", "┴", "┐", "┤", "┬", "┼" ]
 
   def __init__(self, at, up = (), down = (), through = ()):
     self.at = at
@@ -69,21 +69,21 @@ class Row(object):
     if column < self._cols - 1:
       if self._min <= column < self._max:
         if column + 1 == self.at:
-          return u'▶'
+          return '▶'
         elif column == self.at:
-          return u'◀'
+          return '◀'
         elif column in self.through or column + 1 in self.through:
-          return u'┄'
+          return '┄'
         else:
-          return u'─'
+          return '─'
       else:
-        return u' '
+        return ' '
     else:
-      return u''
+      return ''
 
-  def __unicode__(self):
-    return u''.join(self._first_codepoint(i) + self._second_codepoint(i)
-                    for i in xrange(self._cols))
+  def __str__(self):
+    return ''.join(self._first_codepoint(i) + self._second_codepoint(i)
+                    for i in range(self._cols))
 
 def layout(branches):
   # Sanitize data

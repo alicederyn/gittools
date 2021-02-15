@@ -1,4 +1,4 @@
-import git
+from . import git
 
 def test_mergedBranches_single_branch():
   assert frozenset(['Foo']) == git.Branch._mergedBranches("Merge branch 'Foo' into master")

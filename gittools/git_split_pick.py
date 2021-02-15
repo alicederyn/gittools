@@ -9,7 +9,8 @@ during the patch).
 Options:
     -h --help               Show this screen.
 """
-import git, sh, subprocess, sys, time
+import sh, subprocess, sys, time
+from . import git
 from docopt import docopt
 from subprocess import PIPE
 
@@ -47,7 +48,7 @@ def gitAddInteractive():
 
 def splitPick(commit):
   if anyUnstagedChanges() or anyStagedChanges():
-    print >> sys.stderr, "You have uncommitted changes that would be overwritten by a split pick"
+    print("You have uncommitted changes that would be overwritten by a split pick", file=sys.stderr)
     sys.exit(1)
   sh.git('cherry-pick', commit, n=True).wait()
   sh.git.reset().wait()

@@ -1,8 +1,8 @@
 import errno, os, select, signal, subprocess
 from collections import namedtuple
 from functools import update_wrapper
-from lazy import lazy
-from listener import SignalListener
+from .lazy import lazy
+from .listener import SignalListener
 
 __all__ = ['first', 'fractionalSeconds', 'staticproperty', 'window_size', 'LazyList', 'Sh', 'ShError']
 
@@ -41,7 +41,7 @@ class ShError(Exception):
   def __repr__(self):
     return 'ShError(%s, %s, %s)' % (repr(self.returncode), repr(self.cmd), repr(self.stderr))
 
-class Sh(object):
+class Sh:
   def __init__(self, *cmd):
     self.cmd = cmd
     self._process = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
@@ -56,7 +56,7 @@ class Sh(object):
   def __iter__(self):
     return self
 
-  def next(self):
+  def __next__(self):
     # Note: no universal newline support
     if len(self._out) == 1:
       lf = self._out[0].find('\n')
@@ -68,12 +68,12 @@ class Sh(object):
     while read_set:
       try:
         rlist, _, _ = select.select(read_set, [], [])
-      except select.error, e:
+      except select.error as e:
         if e.args[0] == errno.EINTR:
           continue
         raise
       if self._process.stderr in rlist:
-        data = os.read(self._process.stderr.fileno(), 1024)
+        data = os.read(self._process.stderr.fileno(), 1024).decode('utf-8')
         if data == "":
           self._process.stderr.close()
           read_set.remove(self._process.stderr)
@@ -81,7 +81,7 @@ class Sh(object):
         else:
           self._err.append(data)
       if self._process.stdout in rlist:
-        data = os.read(self._process.stdout.fileno(), 1024)
+        data = os.read(self._process.stdout.fileno(), 1024).decode('utf-8')
         if data == "":
           self._process.stdout.close()
           read_set.remove(self._process.stdout)
@@ -105,7 +105,10 @@ class Sh(object):
       raise StopIteration()
 
   def _communicate(self):
-    out, err = self._process.communicate()
+    bout, berr = self._process.communicate()
+    out = bout.decode('utf-8')
+    err = berr.decode('utf-8')
+
     self._process.stdout = self._process.stderr = None
     self._out.append(out)
     out = ''.join(self._out)
@@ -151,11 +154,11 @@ class LazyListIterator(object):
   def __iter__(self):
     return self
 
-  def next(self):
+  def __next__(self):
     try:
       v = self._values[self.pos]
     except IndexError:
-      v = self._iterator.next()
+      v = next(self._iterator)
       self._values.append(v)
     self.pos += 1
     return v
@@ -171,7 +174,7 @@ class LazyList(object):
   def __getitem__(self, y):
     try:
       while len(self._values) <= y:
-        self._values.append(self._iterator.next())
+        self._values.append(next(self._iterator))
     except StopIteration:
       raise IndexError("list index out of range")
     return self._values[y]
@@ -179,7 +182,7 @@ class LazyList(object):
   def __len__(self):
     try:
       while True:
-        self._values.append(self._iterator.next())
+        self._values.append(next(self._iterator))
     except StopIteration:
       pass
     return len(self._values)

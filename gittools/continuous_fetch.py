@@ -1,8 +1,8 @@
 import traceback
 from datetime import timedelta
-from git import GitLockWatcher
+from .git import GitLockWatcher
 from time import sleep
-from utils import Sh, ShError
+from .utils import Sh, ShError
 
 def continuous_fetch(remote = '--all',
                      every = timedelta(minutes = 2),
@@ -13,7 +13,7 @@ def continuous_fetch(remote = '--all',
       try:
         Sh('/usr/local/bin/git', 'fetch', '--prune', remote).execute()
         Sh('/usr/local/bin/git', 'fetch', '--tags', '--prune', remote).execute()
-      except ShError, e:
+      except ShError as e:
         traceback.print_exc()
       sleep(every.total_seconds())
 

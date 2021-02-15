@@ -5,7 +5,7 @@ description = ""
 authors = ["Alice Purcell <Alice.Purcell.39@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^2.7"
+python = "3.8.2"
 docopt = "0.6.2"
 futures = "3.0.5"
 sh = "^1.11"

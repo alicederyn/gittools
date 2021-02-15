@@ -1,7 +1,7 @@
 import weakref
 from itertools import count
-from lazy import lazy, lazy_invalidation, invalidation_strategy, LazyInvalidation
-from utils import staticproperty
+from .lazy import lazy, lazy_invalidation, invalidation_strategy, LazyInvalidation
+from .utils import staticproperty
 
 class DummyListener(object):
   callback = None
@@ -117,7 +117,7 @@ def test_watchable_property():
     def getter(self, obj):
       if obj is None:
         return self
-      return values.next()
+      return next(values)
 
     def watch(self, obj, storage, callback):
       watched[obj] = callback
@@ -135,7 +135,7 @@ def test_watchable_property():
     assert not watched
     assert foo.BAR == 0
     assert watched
-    callback = watched.itervalues().next()
+    callback = next(iter(watched.values()))
     assert foo.BAR == 0
     callback()
     assert foo.BAR == 1

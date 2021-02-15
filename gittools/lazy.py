@@ -96,7 +96,7 @@ class LazyInvalidation(object):
   def __exit__(self, type, value, traceback):
     global invalidation_strategy
     invalidation_strategy = LazyConstants()
-    for intermediary in self._watchMap.itervalues():
+    for intermediary in self._watchMap.values():
       intermediary.release()
     self._watchMap.clear()
 
@@ -166,7 +166,7 @@ class LazyResult(object):
           value = f(*args)
           self._value = (value, None)
           return value
-        except Exception, e:
+        except Exception as e:
           self._value = (None, e)
           raise
     if e:
@@ -214,7 +214,7 @@ class LazyInstanceMethod(object):
         return obj.__dict__[func.__name__]
       except KeyError:
         pass
-    result = super(LazyInstanceMethod, cls).__new__(cls, func, obj, objtype)
+    result = super(LazyInstanceMethod, cls).__new__(cls)
     if obj is not None:
       return obj.__dict__.setdefault(func.__name__, result)
     else:
@@ -238,7 +238,7 @@ class LazyInstanceMethod(object):
       return bound_method(*args[1:], **kwargs)
     else:
       args = (self.__self__,) + args
-      allargs = tuple(getcallargs(self.__func__, *args, **kwargs).iteritems())[1:]
+      allargs = tuple(getcallargs(self.__func__, *args, **kwargs).items())[1:]
       result = self._results.setdefault(allargs, LazyResult())
       return result.get(self.__func__, *args, **kwargs)
 

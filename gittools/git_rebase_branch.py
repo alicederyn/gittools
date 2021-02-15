@@ -16,7 +16,7 @@ Options:
 import sh, os, tempfile
 from collections import namedtuple
 from docopt import docopt
-from git import revparse, getUpstreamBranch, Branch
+from .git import revparse, getUpstreamBranch, Branch
 from itertools import takewhile
 from shutil import copyfile
 
@@ -132,9 +132,9 @@ def startAction(arguments):
   execCmd = arguments["--exec"]
   gitargs, script = getRebaseArgs(branch, execCmd, onto)
   if arguments["--dry-run"]:
-    print " ".join(gitargs)
-    print
-    print script
+    print(" ".join(gitargs))
+    print()
+    print(script)
   else:
     executeRebase(gitargs, script)
 
@@ -165,7 +165,7 @@ def commitAction(arguments):
           else:
             sh.git.branch("-u", upstream, branch)
         if branch != endBranch:
-          print "Updated refs/heads/%s" % (branch)
+          print("Updated refs/heads/%s" % (branch))
       upstream = branch
   if endCommit:
     sh.git.reset("--hard", endCommit)

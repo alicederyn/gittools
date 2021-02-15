@@ -1,30 +1,30 @@
 # coding=utf-8
-from utils import Sh, ShError
+from .utils import Sh, ShError
 
 def test_iteration_no_newline_no_error():
   x = Sh('printf', 'hello')
-  assert 'hello' == x.next()
+  assert 'hello' == next(x)
   try:
-    x.next()
+    next(x)
     assert False and 'Expected StopIteration'
   except StopIteration:
     pass
 
 def test_iteration_newline_no_error():
   x = Sh('echo', 'hello')
-  assert 'hello' == x.next()
+  assert 'hello' == next(x)
   try:
-    x.next()
+    next(x)
     assert False and 'Expected StopIteration'
   except StopIteration:
     pass
 
 def test_iteration_many_lines_no_error():
   x = Sh('bash', '-c', 'for i in {1..1000}; do echo hello; done')
-  for i in xrange(1000):
-    assert 'hello' == x.next()
+  for i in range(1000):
+    assert 'hello' == next(x)
   try:
-    x.next()
+    next(x)
     assert False and 'Expected StopIteration'
   except StopIteration:
     pass
@@ -32,9 +32,9 @@ def test_iteration_many_lines_no_error():
 def test_iteration_error_no_stderr():
   p = Sh('false')
   try:
-    p.next()
+    next(p)
     assert False and 'Expected ShError'
-  except ShError, e:
+  except ShError as e:
     assert 1 == e.returncode
     assert ('false',) == e.cmd
     assert '' == e.stderr
@@ -42,18 +42,18 @@ def test_iteration_error_no_stderr():
 def test_iteration_error_stderr():
   p = Sh('cat', 'DOES-NOT-EXIST')
   try:
-    p.next()
+    next(p)
     assert False and 'Expected ShError'
-  except ShError, e:
+  except ShError as e:
     assert 'cat: DOES-NOT-EXIST: No such file or directory\n' == e.stderr
 
 def test_iteration_error_stdout_no_stderr():
   p = Sh('bash', '-c', 'echo hello ; false')
-  assert 'hello' == p.next()
+  assert 'hello' == next(p)
   try:
-    p.next()
+    next(p)
     assert False and 'Expected ShError'
-  except ShError, e:
+  except ShError as e:
     pass
 
 def test_str_no_error_no_newline():
@@ -69,7 +69,7 @@ def test_str_error_no_stderr():
   try:
     str(p)
     assert False and 'Expected ShError'
-  except ShError, e:
+  except ShError as e:
     assert 1 == e.returncode
     assert ('false',) == e.cmd
     assert '' == e.stderr
@@ -79,7 +79,7 @@ def test_str_error_stderr():
   try:
     str(p)
     assert False and 'Expected ShError'
-  except ShError, e:
+  except ShError as e:
     assert 'cat: DOES-NOT-EXIST: No such file or directory\n' == e.stderr
 
 def test_repr():

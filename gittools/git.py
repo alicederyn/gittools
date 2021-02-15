@@ -3,9 +3,9 @@ from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from fnmatch import fnmatch
 from functools import update_wrapper
-from lazy import lazy
-from multiobserver import OBSERVER
-from utils import first, fractionalSeconds, staticproperty, LazyList, Sh, ShError
+from .lazy import lazy
+from .multiobserver import OBSERVER
+from .utils import first, fractionalSeconds, staticproperty, LazyList, Sh, ShError
 
 __all__ = [ 'getUpstreamBranch', 'git_dir', 'lazy_git_property', 'revparse',
             'Branch', 'GitListener', 'GitLockWatcher' ]
@@ -73,7 +73,7 @@ def revparse(*args):
   """Returns the result of `git rev-parse *args`."""
   try:
     return str(Sh("/usr/local/bin/git", "rev-parse", *args)).strip()
-  except ShError, e:
+  except ShError as e:
     raise ValueError(e)
 
 def getUpstreamBranch(branch):
@@ -160,13 +160,13 @@ class LazyGitProperty(watchdog.events.FileSystemEventHandler, property):
   All globs are relative to root_dir.
   Globs may include object properties, e.g. refs/heads/%name%
   """
-  PROPERTY_RE = re.compile("%(\w+)%")
+  PROPERTY_RE = re.compile(r"%(\w+)%")
 
   def __init__(self, func, watching):
     property.__init__(self, fget = func)
     self.__func__ = func
     self._root_dir = os.path.abspath(git_dir())
-    self._watching = frozenset([watching] if isinstance(watching, basestring)
+    self._watching = frozenset([watching] if isinstance(watching, str)
                                else watching)
     update_wrapper(self, func)
 
@@ -201,7 +201,7 @@ class LazyGitProperty(watchdog.events.FileSystemEventHandler, property):
 def lazy_git_property(watching):
   return lambda func : lazy(LazyGitProperty(func, watching))
 
-class Branch(object):
+class Branch:
   _BRANCHES_BY_ID = { }
   _MERGE_PATTERN = re.compile(
       "Merge branch(?: '([^']+)'|es ('[^']+'(?:, '[^']+')*) and '([^']+)')")
@@ -245,7 +245,7 @@ class Branch(object):
     if name == 'HEAD':
       raise ValueError('HEAD is not a valid Branch name')
     if name not in cls._BRANCHES_BY_ID:
-      cls._BRANCHES_BY_ID[name] = object.__new__(cls, name)
+      cls._BRANCHES_BY_ID[name] = super(Branch, cls).__new__(cls)
     return cls._BRANCHES_BY_ID[name]
 
   def __init__(self, name):

@@ -19,16 +19,16 @@ import logging, re, sys, traceback
 from collections import Counter, defaultdict
 from datetime import datetime
 from docopt import docopt
-from git import Branch, revparse
-from layout import layout
-from lazy import lazy, lazy_invalidation
-from travis import TravisClient
-from utils import window_size
+from .git import Branch, revparse
+from .layout import layout
+from .lazy import lazy, lazy_invalidation
+from .travis import TravisClient
+from .utils import window_size
 
 STATUS_ICONS = {
-  'yellow': u'⌛',
-  'green': u'💚',
-  'red': u'🔥',
+  'yellow': '⌛',
+  'green': '💚',
+  'red': '🔥',
 }
 
 def allChildren(branch):
@@ -84,7 +84,7 @@ class PriorityBranchIterator(object):
   def __iter__(self):
     return self
 
-  def next(self):
+  def __next__(self):
     blocker = None
     while self._priorities and self._priorities[-1] not in self._blockers:
       self._priorities.pop()
@@ -113,22 +113,22 @@ def layoutAllBranches():
         relevantBranches.add(branch.upstream)
   branches = sorted(relevantBranches, key = lambda b : b.modtime or datetime.fromtimestamp(1))
   branches = tuple(PriorityBranchIterator(BranchBlockers(branches)))
-  return zip(branches, layout(branches))
+  return list(zip(branches, layout(branches)))
 
-ESCAPE = re.compile('\x1b[[][^@-~]*[@-~]')
+ESCAPE = re.compile(r'\x1b[\[][^@-~]*[@-~]')
 def stripEscapeCodes(s):
   return ESCAPE.sub('', s)
 
-SURROGATE_PAIR = re.compile(u'[\ud800-\udbff][\udc00-\udfff]', re.UNICODE)
+SURROGATE_PAIR = re.compile('[\ud800-\udbff][\udc00-\udfff]', re.UNICODE)
 # \U0001f538 - Small orange diamond
 # \U0001f539 - Small blue diamond
-DOUBLE_WIDTH = re.compile(u'[\u1b00-\u1bff\U0001f538\U0001f539]|[\u3dd8][\udc00-\udfff]', re.UNICODE)
+DOUBLE_WIDTH = re.compile('[\u1b00-\u1bff\U0001f538\U0001f539]|[\u3dd8][\udc00-\udfff]', re.UNICODE)
 def displayLen(s):
   return len(SURROGATE_PAIR.sub('.', DOUBLE_WIDTH.sub('..', s)))
 
 def printGraph(clearScreen = False, ciTools = ()):
   remotes = frozenset(b.name for b in Branch.REMOTES)
-  remoteHashes = dict(zip(remotes, revparse(*remotes).splitlines()))
+  remoteHashes = dict(list(zip(remotes, revparse(*remotes).splitlines())))
   localsWithRemotes = defaultdict(set)
   for r in remotes:
     localsWithRemotes[r.split('/', 1)[-1]].add(r)
@@ -151,50 +151,50 @@ def printGraph(clearScreen = False, ciTools = ()):
     rows, columns = window_size()
 
   for b, row in layoutAllBranches():
-    graph = unicode(row) + '  '
+    graph = str(row) + '  '
     name = b.name
-    remotes = u''
+    remotes = ''
     if b.name in localsWithRemotes:
       version = b.allCommits[0].hash
       if any(remoteHashes[r] != version for r in localsWithRemotes[b.name]):
-        remotes = u' 🔶'
+        remotes = ' 🔶'
       else:
-        remotes = u' 🔷'
-    ciStatus = u''
-    ciStatuses = [ status for tool in ciTools for status in tool.ciStatus(b).values() if status ]
+        remotes = ' 🔷'
+    ciStatus = ''
+    ciStatuses = [ status for tool in ciTools for status in list(tool.ciStatus(b).values()) if status ]
     if ciStatuses:
-      ciStatus = u' ' + ''.join(STATUS_ICONS[status] for status in ciStatuses)
-    unmerged = u''
+      ciStatus = ' ' + ''.join(STATUS_ICONS[status] for status in ciStatuses)
+    unmerged = ''
     if b.unmerged > 0:
-      unmerged = u' \x1b[1;31m'
+      unmerged = ' \x1b[1;31m'
       if b.unmerged <= 20:
-        unmerged += u'%s unmerged' % unichr(0x245F + b.unmerged)
+        unmerged += '%s unmerged' % chr(0x245F + b.unmerged)
       else:
-        unmerged += u' [%d unmerged]' % b.unmerged
-      unmerged += u'\x1b[0m'
+        unmerged += ' [%d unmerged]' % b.unmerged
+      unmerged += '\x1b[0m'
 
     if sys.stdout.isatty():
       line = graph + name + remotes + ciStatus + unmerged
 
       # Shorten the CI statuses if the line is too long
       if displayLen(stripEscapeCodes(line)) > columns and ciStatuses:
-        altCiStatus = u' '
-        for status, count in Counter(ciStatuses).iteritems():
+        altCiStatus = ' '
+        for status, count in Counter(ciStatuses).items():
           altCiStatus += STATUS_ICONS[status]
           if count > 1:
-            altCiStatus += u'×%d' % count
+            altCiStatus += '×%d' % count
         if displayLen(altCiStatus) < displayLen(ciStatus):
           ciStatus = altCiStatus
         line = graph + name + remotes + ciStatus + unmerged
 
       # Remove the "unmerged" text if the line is too long
       if displayLen(stripEscapeCodes(line)) > columns and b.unmerged > 0:
-        unmerged = u' \x1b[1;31m'
+        unmerged = ' \x1b[1;31m'
         if b.unmerged <= 20:
-          unmerged += u'%s ' % unichr(0x245F + b.unmerged)
+          unmerged += '%s ' % chr(0x245F + b.unmerged)
         else:
-          unmerged += u'[%d]' % b.unmerged
-        unmerged += u'\x1b[0m'
+          unmerged += '[%d]' % b.unmerged
+        unmerged += '\x1b[0m'
         line = graph + name + remotes + ciStatus + unmerged
 
       # Remove the space at the start of the CI statuses if the line is too long
@@ -208,9 +208,9 @@ def printGraph(clearScreen = False, ciTools = ()):
         name = b.name
         if '/' in name:
           dir, name = name.rsplit('/', 1)
-          name = dir[:max(0,space - 2 - len(name))] + u'…/' + name
+          name = dir[:max(0,space - 2 - len(name))] + '…/' + name
         if len(name) > space:
-          name = name[:space - 1] + u'…'
+          name = name[:space - 1] + '…'
         line = graph + name + remotes + ciStatus + unmerged
 
     if b == Branch.HEAD:
@@ -219,7 +219,7 @@ def printGraph(clearScreen = False, ciTools = ()):
 
     if not sys.stdout.isatty():
       line = stripEscapeCodes(line)
-    sys.stdout.write(line.encode('UTF-8'))
+    sys.stdout.write(line)
 
     if clearScreen:
       control('\x1b[K')
@@ -235,7 +235,7 @@ def getPrintGraphArgs(options):
       return algorithms[options[name]]
     except KeyError:
       sys.stderr.write('%s not a valid choice for %s (must be one of: %s)'
-                       % (options[name], name, ", ".join(algorithms.keys())))
+                       % (options[name], name, ", ".join(list(algorithms.keys()))))
   return {
     'ciTools' : () if options['--local'] else (TravisClient(),)
   }

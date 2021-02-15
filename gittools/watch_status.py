@@ -1,8 +1,8 @@
 import os.path, sys, watchdog.events, watchdog.observers
-from git import git_dir, Branch, GitListener, GitLockWatcher
+from .git import git_dir, Branch, GitListener, GitLockWatcher
 from itertools import islice
-from lazy import lazy, lazy_invalidation
-from utils import window_size, Sh
+from .lazy import lazy, lazy_invalidation
+from .utils import window_size, Sh
 
 @lazy
 class git_status(object):
@@ -48,5 +48,5 @@ def main():
     with lazy_invalidation():
       show_status.continually()
   except KeyboardInterrupt:
-    print
+    print()
 
