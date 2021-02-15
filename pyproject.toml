@@ -16,12 +16,12 @@ watchdog = "0.8.3"
 pytest = "^4.6"
 
 [tool.poetry.scripts]
-continuous-fetch="gittools.continuous_fetch:main"
+git-continuous-fetch="gittools.continuous_fetch:main"
 git-graph-branch="gittools.git_graph_branch:main"
 git-mirror="gittools.git_mirror:main"
 git-rebase-branch="gittools.git_rebase_branch:main"
 git-split-pick="gittools.git_split_pick:main"
-watch-status="gittools.watch_status:main"
+git-watch-status="gittools.watch_status:main"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
