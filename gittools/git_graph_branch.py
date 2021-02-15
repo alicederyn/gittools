@@ -1,4 +1,3 @@
-#!/usr/local/bin/python2
 # coding=utf-8
 """Usage: git-graph-branch [options]
 
@@ -241,7 +240,7 @@ def getPrintGraphArgs(options):
     'ciTools' : () if options['--local'] else (TravisClient(),)
   }
 
-if __name__ == '__main__':
+def main():
   logging.basicConfig()
   options = docopt(__doc__)
   if options['--watch']:

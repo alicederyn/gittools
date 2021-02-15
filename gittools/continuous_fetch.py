@@ -1,4 +1,3 @@
-#!/usr/local/bin/python
 import traceback
 from datetime import timedelta
 from git import GitLockWatcher
@@ -18,7 +17,7 @@ def continuous_fetch(remote = '--all',
         traceback.print_exc()
       sleep(every.total_seconds())
 
-if __name__ == '__main__':
+def main():
   try:
     continuous_fetch()
   except KeyboardInterrupt:

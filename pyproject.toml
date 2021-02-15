@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "gittools"
+version = "1.0.0"
+description = ""
+authors = ["Alice Purcell <Alice.Purcell.39@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^2.7"
+docopt = "0.6.2"
+futures = "3.0.5"
+sh = "^1.11"
+TravisPy = "0.3.5"
+watchdog = "0.8.3"
+
+[tool.poetry.dev-dependencies]
+pytest = "^4.6"
+
+[tool.poetry.scripts]
+continuous-fetch="gittools.continuous_fetch:main"
+git-graph-branch="gittools.git_graph_branch:main"
+git-mirror="gittools.git_mirror:main"
+git-rebase-branch="gittools.git_rebase_branch:main"
+git-split-pick="gittools.git_split_pick:main"
+watch-status="gittools.watch_status:main"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

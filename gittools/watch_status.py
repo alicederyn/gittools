@@ -1,4 +1,3 @@
-#!/usr/local/bin/python2
 import os.path, sys, watchdog.events, watchdog.observers
 from git import git_dir, Branch, GitListener, GitLockWatcher
 from itertools import islice
@@ -43,7 +42,7 @@ def show_status():
     sys.stdout.write(line)
   sys.stdout.flush()
 
-if __name__ == '__main__':
+def main():
   assert sys.stdout.isatty()
   try:
     with lazy_invalidation():

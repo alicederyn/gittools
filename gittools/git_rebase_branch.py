@@ -1,4 +1,3 @@
-#!/usr/local/bin/python2
 """Usage:
     git-rebase-branch [--start] [options] [<branch>]
     git-rebase-branch --create <branch>
@@ -218,7 +217,7 @@ def editScriptAction(arguments):
     os.unlink(template)
   os.execlp(gitEditor, gitEditor, script)
 
-if __name__ == '__main__':
+def main():
   import locale
   assert locale.getpreferredencoding() == 'UTF-8' # Fails if we us /usr/grte/v3/bin/python2.7
   arguments = docopt(__doc__)

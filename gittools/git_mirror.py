@@ -1,4 +1,3 @@
-#!/usr/local/bin/python2
 # coding=utf-8
 """Usage: git-mirror <source> <destination>
 
@@ -10,7 +9,7 @@ from docopt import docopt
 from shutil import rmtree
 from utils import Sh, ShError
 
-if __name__ == '__main__':
+def main():
   arguments = docopt(__doc__)
   src = os.path.abspath(arguments['<source>'])
   dst = os.path.abspath(arguments['<destination>'])

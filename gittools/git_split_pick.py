@@ -1,4 +1,3 @@
-#!/usr/local/bin/python2
 # coding=utf-8
 """Usage: git-split-pick [options] <commit>
 
@@ -60,6 +59,6 @@ def splitPick(commit):
       break
     subprocess.call(['git', 'commit', '--reedit-message=' + commit, '--reset-author'])
 
-if __name__ == '__main__':
+def main():
   arguments = docopt(__doc__)
   splitPick(git.revparse(arguments['<commit>']))
