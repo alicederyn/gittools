@@ -13,6 +13,8 @@ pipx install git+https://github.com/alicederyn/gittools.git
 
 [pipx]: https://pipxproject.github.io/pipx/
 
+* [git graph-branch](#git-graph-branch)
+* [git pr](#git-pr)
 
 
 git graph-branch
@@ -62,3 +64,11 @@ git graph-branch will then use this upstream information to determine a tree str
     ─  workspace
 
 In this case, `feature/java.8` is branched off `feature/herc.strategy.api.plugin`, which is branched off `feature/no.more.internal.cluster.dispatch.connection`, which itself is branched off of `develop` (and all four are passing CI tests!).
+
+
+git pr
+------
+
+(Mac only)
+
+Opens the browser to a GitHub page for creating a new PR for this branch, using upstream as the target branch.
