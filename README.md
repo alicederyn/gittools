@@ -13,10 +13,6 @@ pipx install git+https://github.com/alicederyn/gittools.git
 
 [pipx]: https://pipxproject.github.io/pipx/
 
-git fix-case
-------------
-
-A quick 'n dirty script that attempts to reconcile case sensitivity differences between git and the local filesystem. Useful on Macs.
 
 
 git graph-branch
