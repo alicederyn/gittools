@@ -3,7 +3,13 @@ Alice's git tools
 
 This project contains a set of git CLI tools maintained by alice.purcell@oaknorth.ai. The most stable is `git graph-branch`, which displays a clean tree of your local git repository's branches, including forks and merges, whether the branch is in sync with origin (GitHub only), and whether tests are currently passing in CI.
 
-To install the tools, use [pipx].
+To install the tools, use [pipx]:
+
+```bash
+pip install pipx
+export PATH="$PATH:$HOME/.local/bin"
+pipx install git+https://github.com/alicederyn/gittools.git
+```
 
 [pipx]: https://pipxproject.github.io/pipx/
 
