@@ -51,7 +51,7 @@ To get the best out of git graph-branch, I recommend a few configuration changes
     [push]
       default = simple  # plain git push will continue to work as expected
 
-If you have not used these defaults before, you may want to set up upstream information for your existing branches as a one-off. For instance, if `feature/foo` is going to be applied to `develop`, run `git branch feature/foo --set-upstream-to=develop`. Once you have made the config changes above, `git branch -b feature/foo` will set this upstream information for you when you create the branch.
+If you have not used these defaults before, you may want to set up upstream information for your existing branches as a one-off. For instance, if `feature/foo` is going to be applied to `develop`, run `git branch feature/foo --set-upstream-to=develop`. Once you have made the config changes above, `git checkout -b feature/foo` will set this upstream information for you when you create the branch.
 
 git graph-branch will then use this upstream information to determine a tree structure for your branches. For instance, you might see something like:
 
