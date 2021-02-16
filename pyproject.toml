@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gittools"
-version = "1.0.0"
+version = "1.1.0"
 description = ""
 authors = ["Alice Purcell <Alice.Purcell.39@gmail.com>"]
 
@@ -19,6 +19,7 @@ pytest = "^4.6"
 git-continuous-fetch="gittools.continuous_fetch:main"
 git-graph-branch="gittools.git_graph_branch:main"
 git-mirror="gittools.git_mirror:main"
+git-pr="gittools.git_pr:main"
 git-rebase-branch="gittools.git_rebase_branch:main"
 git-split-pick="gittools.git_split_pick:main"
 git-watch-status="gittools.watch_status:main"
