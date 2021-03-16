@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gittools"
-version = "1.1.0"
+version = "1.1.1"
 description = ""
 authors = ["Alice Purcell <Alice.Purcell.39@gmail.com>"]
 

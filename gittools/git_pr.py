@@ -1,4 +1,5 @@
 import re
+import sys
 
 from .utils import Sh
 
@@ -12,8 +13,8 @@ def origin_url():
     return url
 
 
-def upstream_branch():
-    branch = str(Sh("git", "rev-parse", "--abbrev-ref", "@{u}")).strip()
+def upstream_branch(branch):
+    branch = str(Sh("git", "rev-parse", "--abbrev-ref", branch + "@{u}")).strip()
     if branch.startswith("origin/"):
         branch = branch[7:]
     return branch
@@ -23,14 +24,19 @@ def head_branch():
     return str(Sh("git", "rev-parse", "--abbrev-ref", "HEAD")).strip()
 
 
+def pr_url(repo_url, branch):
+    upstream = upstream_branch(branch)
+
+    if upstream != branch:
+        pr_url = f"{repo_url}/pull/new/{upstream}...{branch}"
+    else:
+        pr_url = f"{repo_url}/pull/new/{branch}"
+
+    return pr_url
+
+
 def main():
     repo_url = origin_url()
-    upstream = upstream_branch()
-    head = head_branch()
+    for branch in sys.argv[1:] or [head_branch()]:
+        Sh("open", pr_url(repo_url, branch)).execute()
 
-    if upstream != head:
-        pr_url = f"{repo_url}/pull/new/{upstream}...{head}"
-    else:
-        pr_url = f"{repo_url}/pull/new/{head}"
-
-    Sh("open", pr_url).execute()
