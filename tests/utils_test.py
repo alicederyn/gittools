@@ -1,65 +1,58 @@
+import pytest
+
 from gittools.utils import Sh, ShError
 
 
 def test_iteration_no_newline_no_error():
     x = Sh("printf", "hello")
+
     assert "hello" == next(x)
-    try:
+    with pytest.raises(StopIteration):
         next(x)
-        assert False and "Expected StopIteration"
-    except StopIteration:
-        pass
 
 
 def test_iteration_newline_no_error():
     x = Sh("echo", "hello")
+
     assert "hello" == next(x)
-    try:
+    with pytest.raises(StopIteration):
         next(x)
-        assert False and "Expected StopIteration"
-    except StopIteration:
-        pass
 
 
 def test_iteration_many_lines_no_error():
     x = Sh("bash", "-c", "for i in {1..1000}; do echo hello; done")
+
     for i in range(1000):
         assert "hello" == next(x)
-    try:
+    with pytest.raises(StopIteration):
         next(x)
-        assert False and "Expected StopIteration"
-    except StopIteration:
-        pass
 
 
 def test_iteration_error_no_stderr():
     p = Sh("false")
-    try:
+
+    with pytest.raises(ShError) as err:
         next(p)
-        assert False and "Expected ShError"
-    except ShError as e:
-        assert 1 == e.returncode
-        assert ("false",) == e.cmd
-        assert "" == e.stderr
+
+    assert 1 == err.value.returncode
+    assert ("false",) == err.value.cmd
+    assert "" == err.value.stderr
 
 
 def test_iteration_error_stderr():
     p = Sh("cat", "DOES-NOT-EXIST")
-    try:
+
+    with pytest.raises(ShError) as err:
         next(p)
-        assert False and "Expected ShError"
-    except ShError as e:
-        assert "cat: DOES-NOT-EXIST: No such file or directory\n" == e.stderr
+    assert "cat: DOES-NOT-EXIST: No such file or directory\n" == err.value.stderr
 
 
 def test_iteration_error_stdout_no_stderr():
     p = Sh("bash", "-c", "echo hello ; false")
+
     assert "hello" == next(p)
-    try:
+    with pytest.raises(ShError):
         next(p)
-        assert False and "Expected ShError"
-    except ShError as e:
-        pass
 
 
 def test_str_no_error_no_newline():
@@ -74,22 +67,20 @@ def test_str_no_error_newline():
 
 def test_str_error_no_stderr():
     p = Sh("false")
-    try:
+
+    with pytest.raises(ShError) as err:
         str(p)
-        assert False and "Expected ShError"
-    except ShError as e:
-        assert 1 == e.returncode
-        assert ("false",) == e.cmd
-        assert "" == e.stderr
+    assert 1 == err.value.returncode
+    assert ("false",) == err.value.cmd
+    assert "" == err.value.stderr
 
 
 def test_str_error_stderr():
     p = Sh("cat", "DOES-NOT-EXIST")
-    try:
+
+    with pytest.raises(ShError) as err:
         str(p)
-        assert False and "Expected ShError"
-    except ShError as e:
-        assert "cat: DOES-NOT-EXIST: No such file or directory\n" == e.stderr
+    assert "cat: DOES-NOT-EXIST: No such file or directory\n" == err.value.stderr
 
 
 def test_repr():

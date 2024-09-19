@@ -15,7 +15,7 @@ def continuous_fetch(
             try:
                 Sh("/usr/local/bin/git", "fetch", "--prune", remote).execute()
                 Sh("/usr/local/bin/git", "fetch", "--tags", "--prune", remote).execute()
-            except ShError as e:
+            except ShError:
                 traceback.print_exc()
             sleep(every.total_seconds())
 

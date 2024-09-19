@@ -156,10 +156,6 @@ def printGraph(clearScreen=False, ciTools=()):
     for r in remotes:
         localsWithRemotes[r.split("/", 1)[-1]].add(r)
 
-    done = set()
-    awaitingParents = []
-    firstChilds = []
-
     if clearScreen:
         sys.stdout.write("\x1b[0;0H")
 
