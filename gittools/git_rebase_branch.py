@@ -132,7 +132,7 @@ def getUncommittedBranches():
     commits = {}
     branchesFile = getBranchesFile()
     if os.path.exists(branchesFile):
-        with open(branchesFile, "r") as f:
+        with open(branchesFile) as f:
             for line in f:
                 commit, b = line.strip().split(" ", 1)
                 if commit != "/":
@@ -170,11 +170,11 @@ def createAction(arguments):
 
 def commitAction(arguments):
     branchesFile = getBranchesFile()
-    with open(os.path.join(getRebaseDir(), "head-name"), "r") as f:
+    with open(os.path.join(getRebaseDir(), "head-name")) as f:
         endBranch = revparse("--abbrev-ref", f.readline().strip())
     upstream = getUpstreamBranch(endBranch)
     endCommit = None
-    with open(branchesFile, "r") as f:
+    with open(branchesFile) as f:
         for line in f:
             commit, branch = line.strip().split(" ", 1)
             if branch != "/" and commit != "/":
@@ -239,7 +239,7 @@ def editScriptAction(arguments):
     template = arguments["<template>"]
     script = arguments["<script>"]
     if os.path.exists(template):
-        with open(template, "r") as fin:
+        with open(template) as fin:
             with open(script, "w") as fout:
                 for line in fin:
                     fout.write(line)
