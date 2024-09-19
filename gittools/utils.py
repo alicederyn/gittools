@@ -73,7 +73,7 @@ class Sh:
           continue
         raise
       if self._process.stderr in rlist:
-        data = os.read(self._process.stderr.fileno(), 1024).decode('utf-8')
+        data = os.read(self._process.stderr.fileno(), 1024).decode('utf-8', errors='replace')
         if data == "":
           self._process.stderr.close()
           read_set.remove(self._process.stderr)
@@ -81,7 +81,7 @@ class Sh:
         else:
           self._err.append(data)
       if self._process.stdout in rlist:
-        data = os.read(self._process.stdout.fileno(), 1024).decode('utf-8')
+        data = os.read(self._process.stdout.fileno(), 1024).decode('utf-8', errors='replace')
         if data == "":
           self._process.stdout.close()
           read_set.remove(self._process.stdout)
@@ -106,8 +106,8 @@ class Sh:
 
   def _communicate(self):
     bout, berr = self._process.communicate()
-    out = bout.decode('utf-8')
-    err = berr.decode('utf-8')
+    out = bout.decode('utf-8', errors='replace')
+    err = berr.decode('utf-8', errors='replace')
 
     self._process.stdout = self._process.stderr = None
     self._out.append(out)
