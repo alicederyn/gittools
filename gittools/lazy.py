@@ -227,7 +227,7 @@ class LazyInstanceMethod:
                 return obj.__dict__[func.__name__]
             except KeyError:
                 pass
-        result = super(LazyInstanceMethod, cls).__new__(cls)
+        result = super().__new__(cls)
         if obj is not None:
             return obj.__dict__.setdefault(func.__name__, result)
         else:

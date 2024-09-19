@@ -286,7 +286,7 @@ class Branch:
         if name == "HEAD":
             raise ValueError("HEAD is not a valid Branch name")
         if name not in cls._BRANCHES_BY_ID:
-            cls._BRANCHES_BY_ID[name] = super(Branch, cls).__new__(cls)
+            cls._BRANCHES_BY_ID[name] = super().__new__(cls)
         return cls._BRANCHES_BY_ID[name]
 
     def __init__(self, name):
