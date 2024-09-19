@@ -3,7 +3,7 @@ import sys
 from io import StringIO
 from textwrap import dedent
 
-from .layout import Row, layout
+from gittools.layout import Row, layout
 
 
 class Node(object):

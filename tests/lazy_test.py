@@ -1,8 +1,13 @@
 import weakref
 from itertools import count
 
-from .lazy import LazyInvalidation, invalidation_strategy, lazy, lazy_invalidation
-from .utils import staticproperty
+from gittools.lazy import (
+    LazyInvalidation,
+    invalidation_strategy,
+    lazy,
+    lazy_invalidation,
+)
+from gittools.utils import staticproperty
 
 
 class DummyListener(object):

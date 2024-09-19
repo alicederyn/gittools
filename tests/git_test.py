@@ -1,4 +1,4 @@
-from . import git
+from gittools import git
 
 
 def test_mergedBranches_single_branch():

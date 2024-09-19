@@ -1,5 +1,5 @@
 # coding=utf-8
-from .utils import Sh, ShError
+from gittools.utils import Sh, ShError
 
 
 def test_iteration_no_newline_no_error():
