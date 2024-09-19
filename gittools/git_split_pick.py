@@ -1,4 +1,3 @@
-# coding=utf-8
 """Usage: git-split-pick [options] <commit>
 
 Interactively cherry-picks the given commit in several parts.
