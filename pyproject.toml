@@ -23,6 +23,9 @@ git-watch-status = "gittools.watch_status:main"
 [tool.ruff]
 target-version = "py38"
 
+[tool.ruff.lint]
+select = ["I"]
+
 [build-system]
 requires = ["setuptools >= 75"]
 build-backend = "setuptools.build_meta"

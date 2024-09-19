@@ -1,7 +1,8 @@
 import traceback
 from datetime import timedelta
-from .git import GitLockWatcher
 from time import sleep
+
+from .git import GitLockWatcher
 from .utils import Sh, ShError
 
 

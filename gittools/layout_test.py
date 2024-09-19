@@ -1,8 +1,9 @@
 # coding=utf-8
 import sys
-from .layout import Row, layout
 from io import StringIO
 from textwrap import dedent
+
+from .layout import Row, layout
 
 
 class Node(object):

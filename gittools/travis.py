@@ -1,12 +1,16 @@
-import re, travispy, warnings
+import re
+import warnings
 from collections import defaultdict
+from multiprocessing.pool import ThreadPool
+from weakref import WeakValueDictionary
+
+import travispy
+from travispy import TravisPy
+
 from .git import Branch, lazy_git_property
 from .lazy import lazy
-from multiprocessing.pool import ThreadPool
 from .scheduling import NotDoneException, Poller, Scheduler
-from travispy import TravisPy
 from .utils import Sh, ShError
-from weakref import WeakValueDictionary
 
 
 class TravisClient(object):

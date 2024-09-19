@@ -1,4 +1,5 @@
-import threading, weakref
+import threading
+import weakref
 from collections import deque
 from functools import update_wrapper
 from inspect import getcallargs

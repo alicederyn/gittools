@@ -1,6 +1,11 @@
-import errno, os, select, signal, subprocess
+import errno
+import os
+import select
+import signal
+import subprocess
 from collections import namedtuple
 from functools import update_wrapper
+
 from .lazy import lazy
 from .listener import SignalListener
 

@@ -16,10 +16,15 @@ Options:
                             Continuous integration results will not be fetched.
 """
 
-import logging, re, sys, traceback
+import logging
+import re
+import sys
+import traceback
 from collections import Counter, defaultdict
 from datetime import datetime
+
 from docopt import docopt
+
 from .git import Branch, revparse
 from .layout import layout
 from .lazy import lazy, lazy_invalidation

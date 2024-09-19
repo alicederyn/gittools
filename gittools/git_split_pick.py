@@ -10,10 +10,15 @@ Options:
     -h --help               Show this screen.
 """
 
-import sh, subprocess, sys, time
-from . import git
-from docopt import docopt
+import subprocess
+import sys
+import time
 from subprocess import PIPE
+
+import sh
+from docopt import docopt
+
+from . import git
 
 
 def anyUnstagedChanges():  # Includes untracked

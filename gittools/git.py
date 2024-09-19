@@ -1,11 +1,16 @@
-import os.path, re, threading, watchdog.events
+import os.path
+import re
+import threading
 from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from fnmatch import fnmatch
 from functools import update_wrapper
+
+import watchdog.events
+
 from .lazy import lazy
 from .multiobserver import OBSERVER
-from .utils import first, fractionalSeconds, staticproperty, LazyList, Sh, ShError
+from .utils import LazyList, Sh, ShError, first, fractionalSeconds, staticproperty
 
 __all__ = [
     "getUpstreamBranch",

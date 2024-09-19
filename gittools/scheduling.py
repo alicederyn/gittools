@@ -1,7 +1,9 @@
-import concurrent.futures.thread, threading
+import concurrent.futures.thread
+import threading
 from datetime import datetime, timedelta
 from functools import update_wrapper
-from heapq import heappush, heappop
+from heapq import heappop, heappush
+
 from .utils import fractionalSeconds
 
 

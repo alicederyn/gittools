@@ -14,12 +14,16 @@ Options:
     -n, --dry-run    Don't execute anything; just dump the intermediate commands
 """
 
-import sh, os, tempfile
+import os
+import tempfile
 from collections import namedtuple
-from docopt import docopt
-from .git import revparse, getUpstreamBranch, Branch
 from itertools import takewhile
 from shutil import copyfile
+
+import sh
+from docopt import docopt
+
+from .git import Branch, getUpstreamBranch, revparse
 
 rebase_branch = "git rebase-branch"
 

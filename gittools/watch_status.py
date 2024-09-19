@@ -1,8 +1,13 @@
-import os.path, sys, watchdog.events, watchdog.observers
-from .git import git_dir, Branch, GitListener, GitLockWatcher
+import os.path
+import sys
 from itertools import islice
+
+import watchdog.events
+import watchdog.observers
+
+from .git import Branch, GitListener, GitLockWatcher, git_dir
 from .lazy import lazy, lazy_invalidation
-from .utils import window_size, Sh
+from .utils import Sh, window_size
 
 
 @lazy

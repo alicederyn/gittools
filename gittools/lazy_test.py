@@ -1,6 +1,7 @@
 import weakref
 from itertools import count
-from .lazy import lazy, lazy_invalidation, invalidation_strategy, LazyInvalidation
+
+from .lazy import LazyInvalidation, invalidation_strategy, lazy, lazy_invalidation
 from .utils import staticproperty
 
 
