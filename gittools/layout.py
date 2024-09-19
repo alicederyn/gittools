@@ -59,13 +59,13 @@ class Row:
         )
 
     def __repr__(self):
-        r = "%s(at = %d" % (type(self).__name__, self.at)
+        r = f"{type(self).__name__}(at = {self.at}"
         if self.up:
-            r += ", up = {%s}" % ",".join(map(str, sorted(self.up)))
+            r += f", up = {{{','.join(map(str, sorted(self.up)))}}}"
         if self.down:
-            r += ", down = {%s}" % ",".join(map(str, sorted(self.down)))
+            r += f", down = {{{','.join(map(str, sorted(self.down)))}}}"
         if self.through:
-            r += ", through = {%s}" % ",".join(map(str, sorted(self.through)))
+            r += f", through = {{{','.join(map(str, sorted(self.through)))}}}"
         r += ")"
         return r
 

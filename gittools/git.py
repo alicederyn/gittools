@@ -139,7 +139,7 @@ class GitListener(watchdog.events.FileSystemEventHandler):
         try:
             self._abs_root_dir = os.path.abspath(self.root_dir or git_dir())
         except AttributeError:
-            raise ValueError("root_dir inappropriate: %s" % repr(root_dir))
+            raise ValueError(f"root_dir inappropriate: {root_dir!r}")
         OBSERVER.schedule(self, self._abs_root_dir)
 
     def unwatch(self):
@@ -293,7 +293,7 @@ class Branch:
         self.name = name
 
     def __repr__(self):
-        return "Branch('%s')" % self.name
+        return f"Branch({self.name!r})"
 
     def __hash__(self):
         return hash(self.name)
@@ -312,7 +312,7 @@ class Branch:
                 "/usr/local/bin/git",
                 "log",
                 "-g",
-                "%s@{now}" % self.name,
+                f"{self.name}@{{now}}",
                 "--date=raw",
                 "--format=%gd %H",
             )

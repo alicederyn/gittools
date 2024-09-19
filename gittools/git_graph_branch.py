@@ -198,7 +198,7 @@ def printGraph(clearScreen=False, ciTools=()):
         if b.unmerged > 0:
             unmerged = " \x1b[1;31m"
             if b.unmerged <= 20:
-                unmerged += "%s unmerged" % chr(0x245F + b.unmerged)
+                unmerged += f"{chr(0x245F + b.unmerged)} unmerged"
             else:
                 unmerged += " [%d unmerged]" % b.unmerged
             unmerged += "\x1b[0m"
@@ -221,7 +221,7 @@ def printGraph(clearScreen=False, ciTools=()):
             if displayLen(stripEscapeCodes(line)) > columns and b.unmerged > 0:
                 unmerged = " \x1b[1;31m"
                 if b.unmerged <= 20:
-                    unmerged += "%s " % chr(0x245F + b.unmerged)
+                    unmerged += f"{chr(0x245F + b.unmerged)} "
                 else:
                     unmerged += "[%d]" % b.unmerged
                 unmerged += "\x1b[0m"
@@ -268,8 +268,8 @@ def getPrintGraphArgs(options):
             return algorithms[options[name]]
         except KeyError:
             sys.stderr.write(
-                "%s not a valid choice for %s (must be one of: %s)"
-                % (options[name], name, ", ".join(list(algorithms.keys())))
+                f"{options[name]} not a valid choice for {name}"
+                f" (must be one of: {', '.join(list(algorithms.keys()))})"
             )
 
     return {"ciTools": () if options["--local"] else (TravisClient(),)}

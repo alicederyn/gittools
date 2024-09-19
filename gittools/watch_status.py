@@ -40,7 +40,7 @@ def show_status():
     if Branch.HEAD is None:
         sys.stdout.write("HEAD detached")
     else:
-        sys.stdout.write("On %s" % Branch.HEAD.name)
+        sys.stdout.write(f"On {Branch.HEAD.name}")
     sys.stdout.write("\x1b[0m")
     for line in islice(git_status(), rows - 1):
         sys.stdout.write("\n")

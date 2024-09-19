@@ -257,16 +257,9 @@ class LazyInstanceMethod:
 
     def __repr__(self):
         if self.__self__ is not None:
-            return "<bound lazy method %s.%s of %s>" % (
-                self.im_class.__name__,
-                self.__func__.__name__,
-                repr(self.__self__),
-            )
+            return f"<bound lazy method {self.im_class.__name__}.{self.__func__.__name__} of {self.__self__!r}>"
         else:
-            return "<unbound lazy method %s.%s>" % (
-                self.im_class.__name__,
-                self.__func__.__name__,
-            )
+            return f"<unbound lazy method {self.im_class.__name__}.{self.__func__.__name__}>"
 
 
 class Storage:

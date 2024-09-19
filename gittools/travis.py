@@ -89,7 +89,7 @@ class TravisClient:
         for branch, remotes in self._remotesByBranchName.items():
             for remote in remotes:
                 slug = remoteSlugs[remote]
-                hash = Branch("%s/%s" % (remote, branch)).latestCommit.hash
+                hash = Branch(f"{remote}/{branch}").latestCommit.hash
                 if (slug, branch, hash) in self._pollers:
                     poller = self._pollers[(slug, branch, hash)]
                 else:

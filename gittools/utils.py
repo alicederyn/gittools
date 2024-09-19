@@ -48,12 +48,13 @@ class ShError(Exception):
         self.stderr = stderr
 
     def __str__(self):
-        message = "%s exited with return code %s [%s]" % (
-            self.cmd[0],
-            self.returncode,
-            ("arguments: %s" % " ".join(self.cmd[1:]))
+        arguments = (
+            f"arguments: {' '.join(self.cmd[1:])}"
             if len(self.cmd) > 1
-            else "no arguments",
+            else "no arguments"
+        )
+        message = (
+            f"{self.cmd[0]} exited with return code {self.returncode} [{arguments}]"
         )
         stderr_lines = ["    " + l for l in self.stderr.splitlines()]
         if stderr_lines:
@@ -61,11 +62,7 @@ class ShError(Exception):
         return message
 
     def __repr__(self):
-        return "ShError(%s, %s, %s)" % (
-            repr(self.returncode),
-            repr(self.cmd),
-            repr(self.stderr),
-        )
+        return f"ShError({self.returncode!r}, {self.cmd!r}, {self.stderr!r})"
 
 
 class Sh:
@@ -157,7 +154,7 @@ class Sh:
         return out
 
     def __repr__(self):
-        return "%s(%s)" % (type(self).__name__, ", ".join(repr(v) for v in self.cmd))
+        return f"{type(self).__name__}({', '.join(repr(v) for v in self.cmd)})"
 
     def __enter__(self):
         return self

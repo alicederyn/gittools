@@ -19,7 +19,7 @@ def main():
 
     if os.path.exists(dst):
         print(
-            "git-mirror: %s: File exists" % (arguments["<destination>"],),
+            f"git-mirror: {arguments['<destination>']}: File exists",
             file=sys.stderr,
         )
         sys.exit(100)
@@ -46,4 +46,4 @@ for file in (
     try:
         os.symlink(os.path.join(src, ".git", file), os.path.join(dst, ".git", file))
     except OSError as e:
-        raise OSError("%s: %s" % (e, os.path.join(dst, ".git", file)))
+        raise OSError(f"{e}: {os.path.join(dst, '.git', file)}")

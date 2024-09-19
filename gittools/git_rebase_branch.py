@@ -80,15 +80,15 @@ def getRebaseArgs(root, execCmd, onto):
             for child in branch.children:
                 if child in blocked and not any(c in blocked for c in child.parents):
                     todo.append(child)
-            scriptLines.append("# Branch %s" % branch.name)
+            scriptLines.append(f"# Branch {branch.name}")
             if onto is not None:
-                scriptLines.append("exec %s --reset %s" % (rebase_branch, onto))
+                scriptLines.append(f"exec {rebase_branch} --reset {onto}")
                 onto = None
             elif branch.upstream is None:
                 resetNextCommit = True
             elif branch.upstream is not last:
                 scriptLines.append(
-                    "exec %s --reset %s" % (rebase_branch, branch.upstream.name)
+                    f"exec {rebase_branch} --reset {branch.upstream.name}"
                 )
             for commit in reversed(branch.commits):
                 if commit.merges:
@@ -99,21 +99,19 @@ def getRebaseArgs(root, execCmd, onto):
                         except AttributeError:
                             merges.append(revparse("--short", m))
                     scriptLines.append(
-                        "exec %s --merge %s" % (rebase_branch, " ".join(merges))
+                        f"exec {rebase_branch} --merge {' '.join(merges)}"
                     )
                 else:
                     shortHash = revparse("--short", commit.hash)
                     command = "git reset --hard" if resetNextCommit else "pick"
-                    scriptLines.append(
-                        "%s %s # %s" % (command, shortHash, commit.subject)
-                    )
+                    scriptLines.append(f"{command} {shortHash} # {commit.subject}")
                 resetNextCommit = False
                 if execCmd is not None:
                     scriptLines.append("exec " + execCmd)
-            scriptLines.append("exec %s --create %s" % (rebase_branch, branch.name))
+            scriptLines.append(f"exec {rebase_branch} --create {branch.name}")
             scriptLines.append("")
             last = branch
-    scriptLines.append("exec %s --commit" % (rebase_branch,))
+    scriptLines.append(f"exec {rebase_branch} --commit")
 
     return (args, "\n".join(scriptLines) + "\n")
 
@@ -124,7 +122,7 @@ def executeRebase(gitargs, script):
         f.write(script)
     gitEditor = str(sh.git.var("GIT_EDITOR", _tty_out=False)).strip()
     env = dict(os.environ)
-    env["GIT_EDITOR"] = "%s --edit-script %s %s" % (rebase_branch, gitEditor, f.name)
+    env["GIT_EDITOR"] = f"{rebase_branch} --edit-script {gitEditor} {f.name}"
     os.execvpe("git", gitargs, env)
 
 
@@ -165,7 +163,7 @@ def createAction(arguments):
     branch = arguments["<branch>"][0]
     currentCommit = revparse("HEAD")
     with open(branchesFile, "a") as f:
-        f.write("%s %s\n" % (currentCommit, branch))
+        f.write(f"{currentCommit} {branch}\n")
 
 
 def commitAction(arguments):
@@ -188,7 +186,7 @@ def commitAction(arguments):
                     else:
                         sh.git.branch("-u", upstream, branch)
                 if branch != endBranch:
-                    print("Updated refs/heads/%s" % (branch))
+                    print(f"Updated refs/heads/{branch}")
             upstream = branch
     if endCommit:
         sh.git.reset("--hard", endCommit)
@@ -225,12 +223,9 @@ def mergeAction(arguments):
         else:
             mergeArgs.append(branch)
     if len(branches) == 1:
-        message = "Merge branch '%s'" % branch
+        message = f"Merge branch {branch!r}"
     else:
-        message = "Merge branches %s and '%s'" % (
-            ", ".join("'%s'" % b for b in branches[:-1]),
-            branches,
-        )
+        message = f"Merge branches {", ".join(f'{b!r}' for b in branches[:-1])} and {branch!r}"
     sh.git.merge("--no-edit", "-m", message, *mergeArgs)
 
 
