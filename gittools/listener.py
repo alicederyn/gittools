@@ -1,7 +1,7 @@
 import signal
 
 
-class SignalListener(object):
+class SignalListener:
     def __init__(self, signum):
         self.signum = signum
 

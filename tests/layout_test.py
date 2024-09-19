@@ -6,7 +6,7 @@ from textwrap import dedent
 from gittools.layout import Row, layout
 
 
-class Node(object):
+class Node:
     def __init__(self, name, *parents):
         self.name = name
         self.parents = tuple(parents)

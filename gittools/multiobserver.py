@@ -3,7 +3,7 @@ import watchdog.observers
 __all__ = ["OBSERVER"]
 
 
-class DispatchingHandler(object):
+class DispatchingHandler:
     def __init__(self):
         self.handlers = frozenset()  # Copy-on-write
 
@@ -21,7 +21,7 @@ class DispatchingHandler(object):
             handler.dispatch(event)
 
 
-class MultiObserver(object):
+class MultiObserver:
     def __init__(self):
         self._handlers = {}
         self._observers = {}

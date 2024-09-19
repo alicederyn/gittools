@@ -4,7 +4,7 @@ from collections import namedtuple
 from .utils import first
 
 
-class Row(object):
+class Row:
     """Representation of a single row of a DAG.
 
     self.at: the column containing the row's node

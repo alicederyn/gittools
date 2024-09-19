@@ -11,7 +11,7 @@ from .utils import Sh, window_size
 
 
 @lazy
-class git_status(object):
+class git_status:
     def __call__(self):
         self._git_lock.await_unlocked()
         return list(Sh("git", "status", "--porcelain", "--untracked-files=all"))

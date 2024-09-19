@@ -13,7 +13,7 @@ from .scheduling import NotDoneException, Poller, Scheduler
 from .utils import Sh, ShError
 
 
-class TravisClient(object):
+class TravisClient:
     SLUG_REGEX = re.compile("^git[@]github[.]com:(.*)[.]git$")
 
     def __init__(self):

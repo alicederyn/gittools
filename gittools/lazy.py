@@ -29,7 +29,7 @@ def lazy_invalidation():
     return LazyInvalidation()
 
 
-class LazyConstants(object):
+class LazyConstants:
     def __init__(self):
         self._watchable_objects = WeakSet()
 
@@ -50,7 +50,7 @@ class LazyConstants(object):
         self._watchable_objects.clear()
 
 
-class WeakWatchIntermediary(object):
+class WeakWatchIntermediary:
     def __init__(self, result, watcher):
         self.watcher = watcher
         self.result = weakref.ref(result, self.release)
@@ -77,7 +77,7 @@ class WeakWatchIntermediary(object):
         self.result = None
 
 
-class LazyInvalidation(object):
+class LazyInvalidation:
     def __enter__(self):
         assert threading.current_thread() == MAIN_THREAD
         assert not evaluation_stack
@@ -112,7 +112,7 @@ class LazyInvalidation(object):
         raise TypeError("Cannot nest lazy_invalidation contexts")
 
 
-class LazyEvaluationContext(object):
+class LazyEvaluationContext:
     def __init__(self, lazyObject):
         self.lazyObject = lazyObject
 
@@ -131,7 +131,7 @@ class LazyEvaluationContext(object):
                 invalidation_queue.pop().invalidate()
 
 
-class LazyResult(object):
+class LazyResult:
     inited = False
     deps = None  # Stores hard references to upstream dependencies for invalidation purposes
 
@@ -184,7 +184,7 @@ class LazyResult(object):
         return value
 
 
-class LazyFunction(object):
+class LazyFunction:
     def __init__(self, func, listener=None):
         self.__func__ = func
         if listener is not None:
@@ -220,7 +220,7 @@ class LazyFunction(object):
                 invalidation_event.wait(99999)
 
 
-class LazyInstanceMethod(object):
+class LazyInstanceMethod:
     def __new__(cls, func, obj, objtype):
         if obj is not None:
             try:
@@ -269,11 +269,11 @@ class LazyInstanceMethod(object):
             )
 
 
-class Storage(object):
+class Storage:
     pass
 
 
-class PropertyWatchWrapper(object):
+class PropertyWatchWrapper:
     def __init__(self, func, obj):
         self.func = func
         self.obj = obj
@@ -286,7 +286,7 @@ class PropertyWatchWrapper(object):
         self.func.unwatch(self.storage)
 
 
-class LazyProperty(object):
+class LazyProperty:
     """Lazily-calculated property."""
 
     def __init__(self, delegate):

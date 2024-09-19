@@ -50,7 +50,7 @@ def allChildren(branch):
     return allChildren
 
 
-class BranchBlockers(object):
+class BranchBlockers:
     def __init__(self, branches):
         self._branches = set(branches)
         self._blockers = {}
@@ -83,7 +83,7 @@ class BranchBlockers(object):
             del self._blockers[branch]
 
 
-class PriorityBranchIterator(object):
+class PriorityBranchIterator:
     def __init__(self, blockers):
         self._blockers = blockers
         self._queue = list(blockers.keys())

@@ -71,7 +71,7 @@ class Scheduler(threading.Thread):
         self.release()
 
 
-class CompletedFuture(object):
+class CompletedFuture:
     def __init__(self, value):
         self.value = value
 
@@ -89,7 +89,7 @@ class NotDoneException(Exception):
     pass
 
 
-class Poller(object):
+class Poller:
     """A lazy-compatible function that refreshes a computation periodically."""
 
     def __init__(self, scheduler, task, *args, **kwargs):

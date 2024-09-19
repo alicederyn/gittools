@@ -10,7 +10,7 @@ from gittools.lazy import (
 from gittools.utils import staticproperty
 
 
-class DummyListener(object):
+class DummyListener:
     callback = None
     retain_calls = 0
     release_calls = 0
@@ -104,7 +104,7 @@ def test_function_type_with_invalidation():
 def test_property_cached():
     i = [0]
 
-    class Foo(object):
+    class Foo:
         @lazy
         @property
         def bar(self):
@@ -119,7 +119,7 @@ def test_property_cached():
 def test_staticproperty():
     i = [0]
 
-    class Foo(object):
+    class Foo:
         @staticproperty
         @lazy
         def BAR():
@@ -150,7 +150,7 @@ def test_watchable_property():
         def unwatch(self, storage):
             del watched[storage.obj]
 
-    class Foo(object):
+    class Foo:
         BAR = lazy(Bar())
 
     with lazy_invalidation():
@@ -245,7 +245,7 @@ def test_staticproperty_function_type_with_invalidation():
 def test_method_with_parameters():
     bar_calls = [0]
 
-    class Foo(object):
+    class Foo:
         def __init__(self, offset):
             self.offset = offset
 
@@ -274,7 +274,7 @@ def test_method_with_parameters():
 def test_unbound_method_with_parameters():
     bar_calls = [0]
 
-    class Foo(object):
+    class Foo:
         def __init__(self, offset):
             self.offset = offset
 

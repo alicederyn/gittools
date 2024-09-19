@@ -24,7 +24,7 @@ def fractionalSeconds(delta):
     return delta.total_seconds() + delta.microseconds / 10000000.0
 
 
-class staticproperty(object):
+class staticproperty:
     def __init__(self, func):
         self._func = func
         update_wrapper(self, func)
@@ -180,7 +180,7 @@ def first(collection, default=None):
     return next(iter(collection), default)
 
 
-class LazyListIterator(object):
+class LazyListIterator:
     def __init__(self, iterator, values):
         self._iterator = iterator
         self._values = values
@@ -199,7 +199,7 @@ class LazyListIterator(object):
         return v
 
 
-class LazyList(object):
+class LazyList:
     def __init__(self, iterator):
         self._iterator = iterator
         self._values = []
