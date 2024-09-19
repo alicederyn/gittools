@@ -1,8 +1,3 @@
-from collections import namedtuple
-
-from .utils import first
-
-
 class Row:
     """Representation of a single row of a DAG.
 

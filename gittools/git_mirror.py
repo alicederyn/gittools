@@ -5,11 +5,10 @@ Sets up destination as a mirror of source. All git configuration will be symlink
 
 import os
 import sys
-from shutil import rmtree
 
 from docopt import docopt
 
-from .utils import Sh, ShError
+from .utils import Sh
 
 
 def main():

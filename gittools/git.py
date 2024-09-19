@@ -1,7 +1,7 @@
 import os.path
 import re
 import threading
-from collections import defaultdict, namedtuple
+from collections import namedtuple
 from datetime import datetime, timedelta
 from fnmatch import fnmatch
 from functools import update_wrapper

@@ -16,9 +16,6 @@ Options:
 
 import os
 import tempfile
-from collections import namedtuple
-from itertools import takewhile
-from shutil import copyfile
 
 import sh
 from docopt import docopt

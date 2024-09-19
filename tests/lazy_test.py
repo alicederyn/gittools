@@ -2,8 +2,6 @@ import weakref
 from itertools import count
 
 from gittools.lazy import (
-    LazyInvalidation,
-    invalidation_strategy,
     lazy,
     lazy_invalidation,
 )

@@ -1,7 +1,6 @@
 import re
 import warnings
 from collections import defaultdict
-from multiprocessing.pool import ThreadPool
 from weakref import WeakValueDictionary
 
 import travispy

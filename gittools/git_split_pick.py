@@ -11,7 +11,6 @@ Options:
 
 import subprocess
 import sys
-import time
 from subprocess import PIPE
 
 import sh

@@ -1,5 +1,3 @@
-import sys
-from io import StringIO
 from textwrap import dedent
 
 from gittools.layout import Row, layout
