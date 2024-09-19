@@ -39,4 +39,3 @@ def main():
     repo_url = origin_url()
     for branch in sys.argv[1:] or [head_branch()]:
         Sh("open", pr_url(repo_url, branch)).execute()
-
