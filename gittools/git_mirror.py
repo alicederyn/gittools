@@ -29,20 +29,19 @@ def main():
         print("ref: refs/heads/empty", file=head)
     str(Sh("touch", os.path.join(dst, ".git", "HEAD")))
 
-
-for file in (
-    "FETCH_HEAD",
-    "config",
-    "description",
-    "hooks",
-    "info",
-    "logs/refs",
-    "objects",
-    "packed-refs",
-    "refs",
-    "rr-cache",
-):
-    try:
-        os.symlink(os.path.join(src, ".git", file), os.path.join(dst, ".git", file))
-    except OSError as e:
-        raise OSError(f"{e}: {os.path.join(dst, '.git', file)}")
+    for file in (
+        "FETCH_HEAD",
+        "config",
+        "description",
+        "hooks",
+        "info",
+        "logs/refs",
+        "objects",
+        "packed-refs",
+        "refs",
+        "rr-cache",
+    ):
+        try:
+            os.symlink(os.path.join(src, ".git", file), os.path.join(dst, ".git", file))
+        except OSError as e:
+            raise OSError(f"{e}: {os.path.join(dst, '.git', file)}")
