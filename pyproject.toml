@@ -1,28 +1,25 @@
-[tool.poetry]
+[project]
 name = "gittools"
 version = "1.1.2"
-description = ""
-authors = ["Alice Purcell <Alice.Purcell.39@gmail.com>"]
+description = "Miscellaneous utilities to get more out of git"
+authors = [{ name = "Alice Purcell", email = "alicederyn@gmail.com" }]
+requires-python = ">= 3.8"
+dependencies = [
+    "docopt >= 0.6.2",
+    "sh >= 1.11, < 2",
+    "TravisPy >= 0.3.5",
+    "watchdog >= 0.8.3",
+]
 
-[tool.poetry.dependencies]
-python = "^3.8.2"
-docopt = "0.6.2"
-sh = "^1.11"
-TravisPy = "0.3.5"
-watchdog = "0.8.3"
-
-[tool.poetry.dev-dependencies]
-pytest = "^4.6"
-
-[tool.poetry.scripts]
-git-continuous-fetch="gittools.continuous_fetch:main"
-git-graph-branch="gittools.git_graph_branch:main"
-git-mirror="gittools.git_mirror:main"
-git-pr="gittools.git_pr:main"
-git-rebase-branch="gittools.git_rebase_branch:main"
-git-split-pick="gittools.git_split_pick:main"
-git-watch-status="gittools.watch_status:main"
+[project.scripts]
+git-continuous-fetch = "gittools.continuous_fetch:main"
+git-graph-branch = "gittools.git_graph_branch:main"
+git-mirror = "gittools.git_mirror:main"
+git-pr = "gittools.git_pr:main"
+git-rebase-branch = "gittools.git_rebase_branch:main"
+git-split-pick = "gittools.git_split_pick:main"
+git-watch-status = "gittools.watch_status:main"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools >= 75"]
+build-backend = "setuptools.build_meta"
