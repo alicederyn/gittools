@@ -112,6 +112,6 @@ class TravisClient:
         for remote, future in self._futuresByBranchAndRemote[branch.name].items():
             try:
                 stats[remote] = future()
-            except (IOError, NotDoneException, travispy.errors.TravisError):
+            except (OSError, NotDoneException, travispy.errors.TravisError):
                 pass
         return stats

@@ -97,7 +97,7 @@ class Sh:
         while read_set:
             try:
                 rlist, _, _ = select.select(read_set, [], [])
-            except select.error as e:
+            except OSError as e:
                 if e.args[0] == errno.EINTR:
                     continue
                 raise
