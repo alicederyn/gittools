@@ -76,7 +76,7 @@ class CompletedFuture:
         self.value = value
 
     def result(self):
-        return value
+        return self.value
 
     def done(self):
         return True
