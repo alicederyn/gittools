@@ -224,7 +224,7 @@ def mergeAction(arguments):
         message = f"Merge branch {branch!r}"
     else:
         message = (
-            f"Merge branches {", ".join(f'{b!r}' for b in branches[:-1])}"
+            f"Merge branches {', '.join(f'{b!r}' for b in branches[:-1])}"
             f" and {branch!r}"
         )
     sh.git.merge("--no-edit", "-m", message, *mergeArgs)
