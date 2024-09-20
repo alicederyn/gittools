@@ -122,9 +122,12 @@ def layoutAllBranches():
     # Merge in any remote branches that are upstream of a local branch of a different
     # name
     for branch in localBranches:
-        if branch.upstream is not None and branch.upstream not in localBranches:
-            if branch.upstream.name.split("/", 1)[-1] != branch.name:
-                relevantBranches.add(branch.upstream)
+        if (
+            branch.upstream is not None
+            and branch.upstream not in localBranches
+            and branch.upstream.name.split("/", 1)[-1] != branch.name
+        ):
+            relevantBranches.add(branch.upstream)
     branches = sorted(
         relevantBranches, key=lambda b: b.modtime or datetime.fromtimestamp(1)
     )
