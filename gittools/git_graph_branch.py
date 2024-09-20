@@ -132,7 +132,7 @@ def layoutAllBranches():
         relevantBranches, key=lambda b: b.modtime or datetime.fromtimestamp(1)
     )
     branches = tuple(PriorityBranchIterator(BranchBlockers(branches)))
-    return list(zip(branches, layout(branches)))
+    return list(zip(branches, layout(branches), strict=True))
 
 
 ESCAPE = re.compile(r"\x1b[\[][^@-~]*[@-~]")
@@ -156,7 +156,9 @@ def displayLen(s):
 
 def printGraph(clearScreen=False, ciTools=()):
     remotes = frozenset(b.name for b in Branch.REMOTES)
-    remoteHashes = dict(list(zip(remotes, revparse(*remotes).splitlines())))
+    remoteHashes = dict(
+        list(zip(remotes, revparse(*remotes).splitlines(), strict=True))
+    )
     localsWithRemotes = defaultdict(set)
     for r in remotes:
         localsWithRemotes[r.split("/", 1)[-1]].add(r)

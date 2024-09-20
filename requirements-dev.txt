@@ -1,2 +1,2 @@
-pytest >= 4.6, < 5
+pytest >= 7.3.2
 ruff >= 0.6.5
