@@ -158,10 +158,10 @@ class GitListener(watchdog.events.FileSystemEventHandler):
         any_included = any(fnmatch(rel_path, g) for g in self.include_globs)
         if any_included:
             return True
+        if not self.exclude_globs:
+            return False
         any_excluded = any(fnmatch(rel_path, g) for g in self.exclude_globs)
-        if self.exclude_globs and not any_excluded:
-            return True
-        return False
+        return not any_excluded
 
     def on_any_event(self, event):
         if event.is_directory:
