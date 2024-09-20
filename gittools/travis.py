@@ -30,8 +30,8 @@ class TravisClient:
         try:
             raw = Sh("git", "config", "--get-regexp", "remote\..*\.url")
             remotes = {}
-            for l in raw:
-                key, url = l.split(" ", 1)
+            for line in raw:
+                key, url = line.split(" ", 1)
                 name = key.split(".", 1)[-1].rsplit(".", 1)[0]
                 slug_match = TravisClient.SLUG_REGEX.match(url)
                 if slug_match:

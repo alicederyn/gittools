@@ -316,7 +316,7 @@ class Branch:
                 "--date=raw",
                 "--format=%gd %H",
             )
-            matches = (Branch._REFLOG_RE.search(l) for l in rawlog)
+            matches = (Branch._REFLOG_RE.search(line) for line in rawlog)
             return tuple(RefLine(int(m.group(1)), m.group(2)) for m in matches if m)
         except ShError:
             return ()
@@ -338,7 +338,7 @@ class Branch:
         )
         commits = (
             Commit(h, s.strip(), m.split(" ")[1:])
-            for h, m, s in (l.split(":", 2) for l in raw)
+            for h, m, s in (line.split(":", 2) for line in raw)
         )
         return LazyList(commits)
 

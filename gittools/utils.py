@@ -56,7 +56,7 @@ class ShError(Exception):
         message = (
             f"{self.cmd[0]} exited with return code {self.returncode} [{arguments}]"
         )
-        stderr_lines = ["    " + l for l in self.stderr.splitlines()]
+        stderr_lines = ["    " + line for line in self.stderr.splitlines()]
         if stderr_lines:
             message += "\n" + "\n".join(stderr_lines)
         return message

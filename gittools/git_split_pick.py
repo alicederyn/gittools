@@ -49,7 +49,7 @@ def emptyFiles():
     )
     return [
         file
-        for a, b, file in (l.split(None, 2) for l in idx.splitlines())
+        for a, b, file in (line.split(None, 2) for line in idx.splitlines())
         if a == "0" and b == "0"
     ]
 
