@@ -24,7 +24,7 @@ git-watch-status = "gittools.watch_status:main"
 target-version = "py38"
 
 [tool.ruff.lint]
-select = ["B", "E501", "E713", "E721", "E741", "F", "I", "UP"]
+select = ["B", "E", "F", "I", "UP"]
 
 [build-system]
 requires = ["setuptools >= 75"]

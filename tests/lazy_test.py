@@ -379,7 +379,7 @@ def test_dependency_still_watched_when_no_explicit_references_remain():
         assert bar() == 5
         assert foo_ref() is not None
 
-        foo = lambda: 6
+        foo = lambda: 6  # noqa: E731
         assert listener.retain_calls == 1
         assert listener.release_calls == 0
         assert bar() == 5
