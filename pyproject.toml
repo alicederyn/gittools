@@ -24,7 +24,7 @@ git-watch-status = "gittools.watch_status:main"
 target-version = "py38"
 
 [tool.ruff.lint]
-select = ["B", "E", "F", "I", "PYI", "RUF", "SIM102", "SIM103", "SIM105", "SIM117", "SIM300", "UP"]
+select = ["B", "E", "F", "I", "PYI", "RUF", "SIM", "UP"]
 
 [build-system]
 requires = ["setuptools >= 75"]

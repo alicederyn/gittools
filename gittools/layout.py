@@ -74,7 +74,7 @@ class Row:
         else:
             up = column in self.up
             down = column in self.down
-            if self._min == column == self._max:
+            if self._min == column == self._max:  # noqa: SIM114
                 left = right = True
             elif self.at == column and column in self.down:
                 left = right = True
