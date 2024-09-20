@@ -29,7 +29,7 @@ class TravisClient:
     def _remoteSlugs(self):
         """Remote 'slug' of any GitHub repos, keyed by remote name."""
         try:
-            raw = Sh("git", "config", "--get-regexp", "remote\..*\.url")
+            raw = Sh("git", "config", "--get-regexp", r"remote\..*\.url")
             remotes = {}
             for line in raw:
                 key, url = line.split(" ", 1)
