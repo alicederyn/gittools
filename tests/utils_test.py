@@ -22,7 +22,7 @@ def test_iteration_newline_no_error():
 def test_iteration_many_lines_no_error():
     x = Sh("bash", "-c", "for i in {1..1000}; do echo hello; done")
 
-    for i in range(1000):
+    for _ in range(1000):
         assert "hello" == next(x)
     with pytest.raises(StopIteration):
         next(x)

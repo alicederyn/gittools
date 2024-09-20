@@ -76,7 +76,7 @@ class Sh:
 
     def execute(self):
         with self as lines:
-            for line in lines:
+            for _ in lines:
                 pass
 
     def __iter__(self):
