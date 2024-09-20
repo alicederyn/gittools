@@ -1,10 +1,7 @@
 import weakref
 from itertools import count
 
-from gittools.lazy import (
-    lazy,
-    lazy_invalidation,
-)
+from gittools.lazy import lazy, lazy_invalidation
 from gittools.utils import staticproperty
 
 
