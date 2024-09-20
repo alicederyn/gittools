@@ -235,10 +235,9 @@ def editScriptAction(arguments):
     template = arguments["<template>"]
     script = arguments["<script>"]
     if os.path.exists(template):
-        with open(template) as fin:
-            with open(script, "w") as fout:
-                for line in fin:
-                    fout.write(line)
+        with open(template) as fin, open(script, "w") as fout:
+            for line in fin:
+                fout.write(line)
         os.unlink(template)
     os.execlp(gitEditor, gitEditor, script)
 
