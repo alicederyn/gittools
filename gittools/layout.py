@@ -40,7 +40,7 @@ class Row:
         self._min = min({self.at} | self.up | self.down)
         self._max = max({self.at} | self.up | self.down)
         self._cols = max({self._max} | self.through) + 1
-        assert 0 <= self.at
+        assert self.at >= 0
         assert all(idx >= 0 for idx in self.up)
         assert all(idx >= 0 for idx in self.down)
         assert all(idx >= 0 for idx in self.through)
