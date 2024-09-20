@@ -64,7 +64,7 @@ class BranchBlockers:
         return branch in self._branches
 
     def __getitem__(self, branch):
-        if not branch in self._branches:
+        if branch not in self._branches:
             raise KeyError(branch)
         if not branch.children:
             return branch
