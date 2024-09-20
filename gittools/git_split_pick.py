@@ -62,7 +62,7 @@ def gitAddInteractive():
     ).communicate()
     untracked = stdout.splitlines()
     if untracked:
-        sh.git.add(N=True, *untracked).wait()
+        sh.git.add(N=True, *untracked).wait()  # noqa: B026
     subprocess.call(["git", "add", "--interactive"])
     # Reset any empty files, as they're probably the untracked ones we just added
     f = emptyFiles()

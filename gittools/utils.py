@@ -209,7 +209,7 @@ class LazyList:
             while len(self._values) <= y:
                 self._values.append(next(self._iterator))
         except StopIteration:
-            raise IndexError("list index out of range")
+            raise IndexError("list index out of range") from None
         return self._values[y]
 
     def __len__(self):

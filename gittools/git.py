@@ -95,7 +95,7 @@ def revparse(*args):
     try:
         return str(Sh("/usr/local/bin/git", "rev-parse", *args)).strip()
     except ShError as e:
-        raise ValueError(e)
+        raise ValueError(e) from None
 
 
 def getUpstreamBranch(branch):
@@ -139,7 +139,7 @@ class GitListener(watchdog.events.FileSystemEventHandler):
         try:
             self._abs_root_dir = os.path.abspath(self.root_dir or git_dir())
         except AttributeError:
-            raise ValueError(f"root_dir inappropriate: {root_dir!r}")
+            raise ValueError(f"root_dir inappropriate: {root_dir!r}") from None
         OBSERVER.schedule(self, self._abs_root_dir)
 
     def unwatch(self):

@@ -44,4 +44,6 @@ def main():
         try:
             os.symlink(os.path.join(src, ".git", file), os.path.join(dst, ".git", file))
         except OSError as e:
-            raise OSError(f"{e}: {os.path.join(dst, '.git', file)}")
+            raise OSError(
+                f"Failed to create symlink: {os.path.join(dst, '.git', file)}"
+            ) from e
