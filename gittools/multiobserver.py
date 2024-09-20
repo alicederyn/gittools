@@ -1,3 +1,5 @@
+import contextlib
+
 import watchdog.observers
 
 __all__ = ["OBSERVER"]
@@ -40,10 +42,8 @@ class MultiObserver:
         try:
             self._handlers[directory].remove_handler(handler)
             if not self._handlers[directory].has_handlers():
-                try:
+                with contextlib.suppress(Exception):
                     self._observers[directory].stop()
-                except Exception:
-                    pass
                 del self._observers[directory]
                 del self._handlers[directory]
         except KeyError:

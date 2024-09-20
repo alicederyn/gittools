@@ -1,3 +1,4 @@
+import contextlib
 import re
 import warnings
 from collections import defaultdict
@@ -109,8 +110,8 @@ class TravisClient:
     def ciStatus(self, branch):
         stats = defaultdict(dict)
         for remote, future in self._futuresByBranchAndRemote[branch.name].items():
-            try:
+            with contextlib.suppress(
+                OSError, NotDoneException, travispy.errors.TravisError
+            ):
                 stats[remote] = future()
-            except (OSError, NotDoneException, travispy.errors.TravisError):
-                pass
         return stats

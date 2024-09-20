@@ -1,3 +1,4 @@
+import contextlib
 import threading
 import weakref
 from collections import deque
@@ -57,17 +58,13 @@ class WeakWatchIntermediary:
         watcher.watch(self)
 
     def __call__(self):
-        try:
+        with contextlib.suppress(TypeError):
             self.result().invalidate()
-        except TypeError:
-            pass
 
     def release(self, weakref=None):
         watcher = self.__dict__.pop("watcher", None)  # Atomic
-        try:
+        with contextlib.suppress(AttributeError, TypeError):
             watcher.unwatch()
-        except (AttributeError, TypeError):
-            pass
         try:
             result = self.result()
             result.invalidate()

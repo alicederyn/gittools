@@ -1,3 +1,4 @@
+import contextlib
 import traceback
 from datetime import timedelta
 from time import sleep
@@ -21,7 +22,5 @@ def continuous_fetch(
 
 
 def main():
-    try:
+    with contextlib.suppress(KeyboardInterrupt):
         continuous_fetch()
-    except KeyboardInterrupt:
-        pass
