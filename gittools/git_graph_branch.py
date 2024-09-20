@@ -210,7 +210,7 @@ def printGraph(clearScreen=False, ciTools=()):
                 for status, count in Counter(ciStatuses).items():
                     altCiStatus += STATUS_ICONS[status]
                     if count > 1:
-                        altCiStatus += "×%d" % count
+                        altCiStatus += "×%d" % count  # noqa: RUF001
                 if displayLen(altCiStatus) < displayLen(ciStatus):
                     ciStatus = altCiStatus
                 line = graph + name + remotes + ciStatus + unmerged
