@@ -13,7 +13,7 @@ class Row:
     str(self): Unicode-art representation of this row, e.g. ├▶┘
     """
 
-    BOX_CHARS = [
+    BOX_CHARS = (
         " ",
         "╵",
         "╶",
@@ -30,7 +30,7 @@ class Row:
         "┤",
         "┬",
         "┼",
-    ]
+    )
 
     def __init__(self, at, up=(), down=(), through=()):
         self.at = at

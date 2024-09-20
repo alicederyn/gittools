@@ -4,7 +4,7 @@ import threading
 from datetime import datetime, timedelta
 from fnmatch import fnmatch
 from functools import update_wrapper
-from typing import List, NamedTuple
+from typing import ClassVar, Dict, Final, List, NamedTuple
 
 import watchdog.events
 
@@ -247,8 +247,8 @@ def lazy_git_property(watching):
 
 
 class Branch:
-    _BRANCHES_BY_ID = {}
-    _MERGE_PATTERN = re.compile(
+    _BRANCHES_BY_ID: ClassVar[Dict[str, "Branch"]] = {}
+    _MERGE_PATTERN: Final[re.Pattern] = re.compile(
         "Merge branch(?: '([^']+)'|es ('[^']+'(?:, '[^']+')*) and '([^']+)')"
     )
 
