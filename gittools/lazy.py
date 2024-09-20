@@ -14,7 +14,7 @@ def lazy(object=None, listener=None):
         return lambda object: lazy(object, listener)
     if isinstance(object, type) or str(type(object)) == "<type 'classobj'>":
         return update_wrapper(LazyFunction(object(), listener), object)
-    elif hasattr(object, "__call__"):
+    elif callable(object):
         return update_wrapper(LazyFunction(object, listener), object)
     elif hasattr(object, "__get__"):
         lazy_property = LazyProperty(object)
