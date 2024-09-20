@@ -252,7 +252,7 @@ class LazyInstanceMethod:
                 raise TypeError("@lazy does not support inheritance: " + repr(self))
             return bound_method(*args[1:], **kwargs)
         else:
-            args = (self.__self__,) + args
+            args = (self.__self__, *args)
             allargs = tuple(getcallargs(self.__func__, *args, **kwargs).items())[1:]
             result = self._results.setdefault(allargs, LazyResult())
             return result.get(self.__func__, *args, **kwargs)
