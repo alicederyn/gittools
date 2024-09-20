@@ -166,16 +166,12 @@ class GitListener(watchdog.events.FileSystemEventHandler):
     def on_any_event(self, event):
         if event.is_directory:
             pass
-        elif self.path_matches(os.path.relpath(event.src_path, self._abs_root_dir)):
+        elif self.path_matches(os.path.relpath(event.src_path, self._abs_root_dir)):  # noqa: SIM114
             self._callback()
-        else:
-            try:
-                if self.path_matches(
-                    os.path.relpath(event.dest_path, self._abs_root_dir)
-                ):
-                    self._callback()
-            except AttributeError:
-                pass
+        elif getattr(event, "dest_path", "") and self.path_matches(
+            os.path.relpath(event.dest_path, self._abs_root_dir)
+        ):
+            self._callback()
 
 
 def lazy_git_function(watching):
@@ -224,16 +220,12 @@ class LazyGitProperty(watchdog.events.FileSystemEventHandler, property):
             def on_any_event(self, event):
                 if event.is_directory:
                     pass
-                elif self.path_matches(os.path.relpath(event.src_path, root_dir)):
+                elif self.path_matches(os.path.relpath(event.src_path, root_dir)):  # noqa: SIM114
                     callback()
-                else:
-                    try:
-                        if self.path_matches(
-                            os.path.relpath(event.dest_path, root_dir)
-                        ):
-                            callback()
-                    except AttributeError:
-                        pass
+                elif getattr(event, "dest_path", "") and self.path_matches(
+                    os.path.relpath(event.dest_path, root_dir)
+                ):
+                    callback()
 
         storage.handler = handler()
         OBSERVER.schedule(storage.handler, ".git")
