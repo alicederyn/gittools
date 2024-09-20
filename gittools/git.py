@@ -1,10 +1,10 @@
 import os.path
 import re
 import threading
-from collections import namedtuple
 from datetime import datetime, timedelta
 from fnmatch import fnmatch
 from functools import update_wrapper
+from typing import List, NamedTuple
 
 import watchdog.events
 
@@ -106,8 +106,15 @@ def getUpstreamBranch(branch):
         return None
 
 
-RefLine = namedtuple("RefLine", "timestamp hash")
-Commit = namedtuple("Commit", "hash subject merges")
+class RefLine(NamedTuple):
+    timestamp: int
+    hash: str
+
+
+class Commit(NamedTuple):
+    hash: str
+    subject: str
+    merges: List[str]
 
 
 class GitListener(watchdog.events.FileSystemEventHandler):

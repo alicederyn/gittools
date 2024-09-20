@@ -3,8 +3,8 @@ import os
 import select
 import signal
 import subprocess
-from collections import namedtuple
 from functools import update_wrapper
+from typing import NamedTuple
 
 from .lazy import lazy
 from .listener import SignalListener
@@ -33,7 +33,9 @@ class staticproperty:
         return self._func()
 
 
-WindowSize = namedtuple("Size", "rows columns")
+class WindowSize(NamedTuple):
+    rows: int
+    columns: int
 
 
 @lazy(listener=SignalListener(signal.SIGWINCH))
