@@ -7,10 +7,11 @@
     git-rebase-branch --merge <branch> ...
 
 Options:
-    --exec=<cmd>     Append "exec <cmd>" after each line creating a commit in the final history.
-    --onto=<branch>  Starting point at which to create the new commits; defaults to the upstream
-                     branch. The upstream branch will be updated to match the new value when the
-                     rebase completes.
+    --exec=<cmd>     Append "exec <cmd>" after each line creating a commit in the final
+                     history.
+    --onto=<branch>  Starting point at which to create the new commits; defaults to the
+                     upstream branch. The upstream branch will be updated to match the
+                     new value when the rebase completes.
     -n, --dry-run    Don't execute anything; just dump the intermediate commands
 """
 
@@ -222,7 +223,10 @@ def mergeAction(arguments):
     if len(branches) == 1:
         message = f"Merge branch {branch!r}"
     else:
-        message = f"Merge branches {", ".join(f'{b!r}' for b in branches[:-1])} and {branch!r}"
+        message = (
+            f"Merge branches {", ".join(f'{b!r}' for b in branches[:-1])}"
+            f" and {branch!r}"
+        )
     sh.git.merge("--no-edit", "-m", message, *mergeArgs)
 
 

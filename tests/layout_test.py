@@ -12,7 +12,10 @@ class Node:
             parent.children.append(self)
 
     def __repr__(self):
-        return f"Node({self.name}, parents={[p.name for p in self.parents]}, children={[c.name for c in self.children]})"
+        return (
+            f"Node({self.name}, parents={[p.name for p in self.parents]},"
+            f" children={[c.name for c in self.children]})"
+        )
 
 
 def test_row_repr():

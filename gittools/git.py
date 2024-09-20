@@ -117,8 +117,8 @@ class GitListener(watchdog.events.FileSystemEventHandler):
     Monitors root_dir (the current .git dir by default) and its subdirectories for
         file-system events.
     Events that match *any* include_glob will trigger an invalidation.
-    If any exclude_globs are provided, events that *do not* match any of them will trigger an
-        invalidation.
+    If any exclude_globs are provided, events that *do not* match any of them will
+        trigger an invalidation.
     If no globs are provided, *all* events trigger an invalidation.
     All globs are relative to root_dir.
     """
@@ -182,8 +182,8 @@ class LazyGitProperty(watchdog.events.FileSystemEventHandler, property):
     Monitors root_dir (the current .git dir by default) and its subdirectories for
         file-system events.
     Events that match *any* include_glob will trigger an invalidation.
-    If any exclude_globs are provided, events that *do not* match any of them will trigger an
-        invalidation.
+    If any exclude_globs are provided, events that *do not* match any of them will
+        trigger an invalidation.
     If no globs are provided, *all* events trigger an invalidation.
     All globs are relative to root_dir.
     Globs may include object properties, e.g. refs/heads/%name%

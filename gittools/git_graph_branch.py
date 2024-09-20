@@ -9,7 +9,8 @@ Symbols:
 
 Options:
     -h --help               Show this screen.
-    -w, --watch             Continue to watch for git repo changes after printing the graph.
+    -w, --watch             Continue to watch for git repo changes after printing the
+                            graph.
     --profile               Profiles the app.
     -l, --local             Only display information available from the local git repo.
                             Continuous integration results will not be fetched.
@@ -118,7 +119,8 @@ class PriorityBranchIterator:
 def layoutAllBranches():
     localBranches = Branch.ALL
     relevantBranches = set(localBranches)
-    # Merge in any remote branches that are upstream of a local branch of a different name
+    # Merge in any remote branches that are upstream of a local branch of a different
+    # name
     for branch in localBranches:
         if branch.upstream is not None and branch.upstream not in localBranches:
             if branch.upstream.name.split("/", 1)[-1] != branch.name:

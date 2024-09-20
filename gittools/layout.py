@@ -2,11 +2,14 @@ class Row:
     """Representation of a single row of a DAG.
 
     self.at: the column containing the row's node
-    self.up: columns with up edges this row's node is connected to other nodes on up the DAG
-    self.down: columns with down edges this row's node is connected to
-    self.through: columns with edges this row's node is not connected to
+    self.up: columns this row's node uses to connect to other nodes higher up in the DAG
+    self.down: columns this row's node uses to connect to other nodes lower down in the
+               DAG
+    self.through: columns with edges that pass through this row but that this row's node
+                  is not connected to
 
-    repr(self): Pythonic representation of this row, e.g. Row(at = 1, up={0,1}, down={0})
+    repr(self): Pythonic representation of this row,
+                e.g. Row(at = 1, up={0,1}, down={0})
     str(self): Unicode-art representation of this row, e.g. ├▶┘
     """
 

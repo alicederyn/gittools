@@ -133,7 +133,9 @@ class LazyEvaluationContext:
 
 class LazyResult:
     inited = False
-    deps = None  # Stores hard references to upstream dependencies for invalidation purposes
+
+    # Stores hard references to upstream dependencies for invalidation purposes
+    deps = None
 
     def __init__(self, watcher=None):
         self.watcher = watcher
@@ -257,9 +259,15 @@ class LazyInstanceMethod:
 
     def __repr__(self):
         if self.__self__ is not None:
-            return f"<bound lazy method {self.im_class.__name__}.{self.__func__.__name__} of {self.__self__!r}>"
+            return (
+                f"<bound lazy method {self.im_class.__name__}"
+                f".{self.__func__.__name__} of {self.__self__!r}>"
+            )
         else:
-            return f"<unbound lazy method {self.im_class.__name__}.{self.__func__.__name__}>"
+            return (
+                f"<unbound lazy method {self.im_class.__name__}"
+                f".{self.__func__.__name__}>"
+            )
 
 
 class Storage:
