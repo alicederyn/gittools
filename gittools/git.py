@@ -401,7 +401,7 @@ class Branch:
         """All parents of this branch, whether upstream or merged."""
         if self.upstream is None:
             return frozenset()
-        parents = [p for c in self.commits for p in c.merges if type(p) == Branch]
+        parents = [p for c in self.commits for p in c.merges if isinstance(p, Branch)]
         parents.append(self.upstream)
         return frozenset(parents)
 
