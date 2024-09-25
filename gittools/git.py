@@ -25,6 +25,11 @@ __all__ = [
 # wait(None) blocks signals like KeyboardInterrupt
 # Use wait(99999) instead
 INDEFINITELY = 99999
+OPEN_CLOSE_EVENTS = {
+    watchdog.events.EVENT_TYPE_CLOSED,
+    watchdog.events.EVENT_TYPE_CLOSED_NO_WRITE,
+    watchdog.events.EVENT_TYPE_OPENED,
+}
 
 
 @lazy
@@ -165,7 +170,9 @@ class GitListener(watchdog.events.FileSystemEventHandler):
 
     def on_any_event(self, event):
         if event.is_directory:
-            pass
+            return
+        if event.event_type in OPEN_CLOSE_EVENTS:
+            return
         elif self.path_matches(os.path.relpath(event.src_path, self._abs_root_dir)):  # noqa: SIM114
             self._callback()
         elif getattr(event, "dest_path", "") and self.path_matches(
@@ -219,6 +226,8 @@ class LazyGitProperty(watchdog.events.FileSystemEventHandler, property):
 
             def on_any_event(self, event):
                 if event.is_directory:
+                    pass
+                if event.event_type in OPEN_CLOSE_EVENTS:
                     pass
                 elif self.path_matches(os.path.relpath(event.src_path, root_dir)):  # noqa: SIM114
                     callback()
