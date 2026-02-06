@@ -1,6 +1,6 @@
 [project]
 name = "gittools"
-version = "1.3.1"
+version = "2.0.0"
 description = "Miscellaneous utilities to get more out of git"
 authors = [{ name = "Alice Purcell", email = "alicederyn@gmail.com" }]
 requires-python = ">= 3.12"
@@ -8,7 +8,6 @@ dynamic = ["dependencies"]
 
 [project.scripts]
 git-continuous-fetch = "gittools.continuous_fetch:main"
-git-graph-branch = "gittools.git_graph_branch:main"
 git-mirror = "gittools.git_mirror:main"
 git-pr = "gittools.git_pr:main"
 git-rebase-branch = "gittools.git_rebase_branch:main"
