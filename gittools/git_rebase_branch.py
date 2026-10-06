@@ -16,9 +16,9 @@ Options:
 """
 
 import os
+import subprocess
 import tempfile
 
-import sh
 from docopt import docopt
 
 from .git import Branch, getUpstreamBranch, revparse
@@ -118,7 +118,9 @@ def executeRebase(gitargs, script):
     """Executes git rebase; does not return unless there is an error starting git."""
     with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
         f.write(script)
-    gitEditor = str(sh.git.var("GIT_EDITOR", _tty_out=False)).strip()
+    gitEditor = subprocess.run(
+        ["git", "var", "GIT_EDITOR"], check=True, stdout=subprocess.PIPE, text=True
+    ).stdout.strip()
     env = dict(os.environ)
     env["GIT_EDITOR"] = f"{rebase_branch} --edit-script {gitEditor} {f.name}"
     os.execvpe("git", gitargs, env)
@@ -177,17 +179,31 @@ def commitAction(arguments):
                 if branch == endBranch:
                     endCommit = commit
                 else:
-                    sh.git.branch(branch, commit, f=True)
+                    subprocess.run(
+                        ["git", "branch", "-f", branch, commit],
+                        check=True,
+                        stdout=subprocess.DEVNULL,
+                    )
                 if upstream:
                     if upstream == "/":
-                        sh.git.branch("--unset-upstream", branch)
+                        subprocess.run(
+                            ["git", "branch", "--unset-upstream", branch],
+                            check=True,
+                            stdout=subprocess.DEVNULL,
+                        )
                     else:
-                        sh.git.branch("-u", upstream, branch)
+                        subprocess.run(
+                            ["git", "branch", "-u", upstream, branch],
+                            check=True,
+                            stdout=subprocess.DEVNULL,
+                        )
                 if branch != endBranch:
                     print(f"Updated refs/heads/{branch}")
             upstream = branch
     if endCommit:
-        sh.git.reset("--hard", endCommit)
+        subprocess.run(
+            ["git", "reset", "--hard", endCommit], check=True, stdout=subprocess.DEVNULL
+        )
 
 
 def resetAction(arguments):
@@ -198,15 +214,25 @@ def resetAction(arguments):
         f.write("/ %s\n" % (branch or "/"))
     assert branch is not None  # Buggy
     if branch is None:
-        sh.git("update-ref", "-d", "HEAD")
-        sh.git.reset("--hard")
+        subprocess.run(
+            ["git", "update-ref", "-d", "HEAD"], check=True, stdout=subprocess.DEVNULL
+        )
+        subprocess.run(
+            ["git", "reset", "--hard"], check=True, stdout=subprocess.DEVNULL
+        )
         from time import sleep
 
         sleep(2)
     elif branch in commits:
-        sh.git.checkout(commits[branch])
+        subprocess.run(
+            ["git", "checkout", "--quiet", commits[branch]],
+            check=True,
+            stdout=subprocess.DEVNULL,
+        )
     else:
-        sh.git.reset("--hard", branch)
+        subprocess.run(
+            ["git", "reset", "--hard", branch], check=True, stdout=subprocess.DEVNULL
+        )
 
 
 def mergeAction(arguments):
@@ -227,7 +253,11 @@ def mergeAction(arguments):
             f"Merge branches {', '.join(f'{b!r}' for b in branches[:-1])}"
             f" and {branch!r}"
         )
-    sh.git.merge("--no-edit", "-m", message, *mergeArgs)
+    subprocess.run(
+        ["git", "merge", "--no-edit", "-m", message, *mergeArgs],
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
 
 
 def editScriptAction(arguments):

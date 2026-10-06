@@ -11,9 +11,8 @@ Options:
 
 import subprocess
 import sys
-from subprocess import PIPE
+from subprocess import DEVNULL, PIPE
 
-import sh
 from docopt import docopt
 
 from . import git
@@ -44,9 +43,12 @@ def anyStagedChanges():
 
 
 def emptyFiles():
-    idx = sh.git(
-        "diff-index", "--cached", "--numstat", "HEAD", "--", _iter=True, _tty_out=False
-    )
+    idx = subprocess.run(
+        ["git", "diff-index", "--cached", "--numstat", "HEAD", "--"],
+        check=True,
+        stdout=PIPE,
+        text=True,
+    ).stdout
     return [
         file
         for a, b, file in (line.split(None, 2) for line in idx.splitlines())
@@ -62,12 +64,14 @@ def gitAddInteractive():
     ).communicate()
     untracked = stdout.splitlines()
     if untracked:
-        sh.git.add(N=True, *untracked).wait()  # noqa: B026
+        subprocess.run(["git", "add", "-N", *untracked], check=True, stdout=DEVNULL)
     subprocess.call(["git", "add", "--interactive"])
     # Reset any empty files, as they're probably the untracked ones we just added
     f = emptyFiles()
     if f:
-        sh.git.reset("--", *emptyFiles())
+        subprocess.run(
+            ["git", "reset", "--quiet", "--", *emptyFiles()], check=True, stdout=DEVNULL
+        )
 
 
 def splitPick(commit):
@@ -77,13 +81,13 @@ def splitPick(commit):
             file=sys.stderr,
         )
         sys.exit(1)
-    sh.git("cherry-pick", commit, n=True).wait()
-    sh.git.reset().wait()
+    subprocess.run(["git", "cherry-pick", "-n", commit], check=True, stdout=DEVNULL)
+    subprocess.run(["git", "reset", "--quiet"], check=True, stdout=DEVNULL)
     while anyUnstagedChanges() or anyStagedChanges():
         gitAddInteractive()
         if not anyStagedChanges():  # User is done
-            sh.git.reset(hard=True)
-            sh.git.clean(d=True, f=True)
+            subprocess.run(["git", "reset", "--hard"], check=True, stdout=DEVNULL)
+            subprocess.run(["git", "clean", "-d", "-f"], check=True, stdout=DEVNULL)
             break
         subprocess.call(
             ["git", "commit", "--reedit-message=" + commit, "--reset-author"]
