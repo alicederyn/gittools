@@ -1,4 +1,4 @@
-docopt >= 0.6.2
+docopt-ng >= 0.9
 sh >= 1.11, < 2
 watchdog >= 4
 
