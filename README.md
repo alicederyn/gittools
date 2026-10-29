@@ -19,6 +19,12 @@ Where did git graph-branch go?
 git graph-branch has had a ground-up rewrite, and moved to its own repository:
 https://github.com/alicederyn/git-graph-branch/
 
+Where did git rebase-branch go?
+-------------------------------
+
+git rebase-branch has moved to its own repository:
+https://github.com/alicederyn/git-rebase-branch
+
 
 git pr
 ------
